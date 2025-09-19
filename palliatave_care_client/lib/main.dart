@@ -3,15 +3,17 @@ import 'package:flutter/material.dart';
 // import 'dart:convert';
 // import 'package:intl/intl.dart'; // For date formatting
 import 'package:palliatave_care_client/pages/login_page.dart';
+import 'services/api_service.dart';
 
 
 void main() {
+  ApiService.warmUpServer();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
+  
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

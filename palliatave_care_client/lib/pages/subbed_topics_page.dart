@@ -6,9 +6,14 @@ import 'package:palliatave_care_client/widgets/info_dialog.dart';
 import 'package:palliatave_care_client/util/http_status.dart'; // Import HttpStatus
 import 'package:palliatave_care_client/models/topic.dart';
 import '../widgets/topic_card.dart';
+import '../pages/topic_detail_page.dart';
+
 // SubscribedTopicsPage - Displays topics the current user is subscribed to
 class SubscribedTopicsPage extends StatefulWidget {
-  const SubscribedTopicsPage({super.key});
+
+  final String userRole;
+
+  const SubscribedTopicsPage({super.key, required this.userRole});
 
   @override
   State<SubscribedTopicsPage> createState() => _SubscribedTopicsPageState();
@@ -18,6 +23,7 @@ class _SubscribedTopicsPageState extends State<SubscribedTopicsPage> {
   final ApiService _apiService = ApiService();
   List<Topic> _subscribedTopics = [];
   bool _isLoading = false;
+
 
   @override
   void initState() {
@@ -94,10 +100,13 @@ class _SubscribedTopicsPageState extends State<SubscribedTopicsPage> {
                         isSubscribed: true, // Always true on this page
                         onSubscribe: () {}, // No subscribe action on this page
                         onUnsubscribe: () => _handleUnsubscribe(topic.id),
-                        onTap: () {
-                          // TODO: Implement navigation to TopicDetailPage
-                          print('View Subscribed Topic: ${topic.title}');
-                        },
+                        onTap: () {Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => TopicDetailPage(topic: topic, userRole: widget.userRole),
+                                  ),
+                                ).then((_) => _fetchSubscribedTopics()); // Refresh on return
+                              },
                       ),
                     );
                   },

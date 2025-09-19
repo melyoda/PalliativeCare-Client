@@ -14,14 +14,15 @@ import 'dart:io'; // For File
 import 'package:palliatave_care_client/models/post_summary_page_response.dart';
 import 'package:palliatave_care_client/models/post_dto.dart'; // Assuming you have a PostDTO model
 import 'package:palliatave_care_client/models/comment_dto.dart'; // Assuming you have a CommentDTO model
-
+import 'package:palliatave_care_client/models/chat_models.dart';
 
 class ApiService {
   // Define the base URL for your backend server.
   // IMPORTANT: For Android Emulator, use 'http://10.0.2.2:8080' to access host localhost.
   // For iOS Simulator, 'http://localhost:8080' usually works.
   // For physical devices, use your machine's actual IP address.
-  static const String _baseUrl = "http://localhost:8080";
+  // static const String _baseUrl = "http://localhost:8080";
+  static const String _baseUrl = "https://palliativecare-k6g2.onrender.com";
 
   // Endpoint specific paths
   static const String _authPath = "/api/auth";
@@ -693,6 +694,110 @@ class ApiService {
       );
     }
   }
+
+// ✅ NEW: Method to search for topics by keyword
+  Future<ApiResponse<List<Topic>>> searchTopics(String keyword) async {
+    // URL encode the keyword to handle spaces and special characters
+    final encodedKeyword = Uri.encodeComponent(keyword);
+    final url = Uri.parse('$_baseUrl$_topicsPath/search?keyword=$encodedKeyword');
+
+    try {
+      final String? token = await getToken();
+      if (token == null) {
+        return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name,
+          message: "No authentication token found. Please log in.",
+        );
+      }
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.body.isEmpty) {
+        return ApiResponse(
+          status: HttpStatus.OK.name,
+          message: "No topics found for '$keyword'.",
+          data: [], // Return an empty list
+        );
+      }
+
+      final decodedResponse = json.decode(response.body);
+
+      if (decodedResponse['status'] == 'OK' && decodedResponse['data'] != null) {
+        final List<dynamic> topicJsonList = decodedResponse['data'] ?? [];
+        final List<Topic> topics = topicJsonList.map((json) => Topic.fromJson(json)).toList();
+        return ApiResponse(
+          status: 'OK',
+          message: decodedResponse['message'] ?? "Search results fetched successfully",
+          data: topics
+        );
+      } else {
+        return ApiResponse(
+          status: decodedResponse['status']?.toString() ?? HttpStatus.BAD_REQUEST.name,
+          message: decodedResponse['message'] ?? "Failed to search topics",
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        status: HttpStatus.INTERNAL_SERVER_ERROR.name,
+        message: "Failed to search topics: $e",
+      );
+    }
+  }
+
+Future<List<ChatConversation>> getConversations() async {
+  final url = Uri.parse('$_baseUrl/api/chats');
+
+  // 1. Get the token from secure storage
+  final String? token = await getToken();
+  if (token == null) {
+    // Or handle this more gracefully
+    throw Exception('Authentication token not found. Please log in.');
+  }
+
+  // 2. Make the authenticated request
+  final response = await http.get(
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token', // <-- THE IMPORTANT PART
+    },
+  );
+
+  if (response.statusCode == 200) {
+    // The backend returns a list directly, no need to check for 'status' or 'data' keys
+    List<dynamic> body = jsonDecode(response.body);
+    List<ChatConversation> conversations = body
+        .map((dynamic item) => ChatConversation.fromJson(item))
+        .toList();
+    return conversations;
+  } else {
+    // Throw a more informative error
+    throw Exception('Failed to load conversations. Status code: ${response.statusCode}');
+  }
+}
+
+static Future<void> warmUpServer() async {
+    final String baseUrl = 'https://palliativecare-k6g2.onrender.com';
+    
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/actuator/health'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 15)); 
+
+      print('Server warm-up ping succeeded: ${response.statusCode}');
+    } catch (e) {
+      // This will catch any type of exception, including TimeoutException
+      print('Server warm-up ping completed (may have timed out, which is okay): $e');
+    }
+  }
+
 }
 
 // Helper class to hold paginated post data

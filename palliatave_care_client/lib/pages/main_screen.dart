@@ -15,6 +15,8 @@ import 'package:palliatave_care_client/util/http_status.dart'; // Import HttpSta
 import '../models/user_account.dart';
 import '../pages/subbed_topics_page.dart';
 import '../pages/all_topics_page.dart';
+import 'package:palliatave_care_client/widgets/app_sidebar.dart';
+import 'package:palliatave_care_client/pages/chat_list_screen.dart';
 
 class ForYouPage extends StatefulWidget {
   const ForYouPage({super.key});
@@ -132,162 +134,55 @@ Future<void> _loadCurrentUserData() async {
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
   }
 
+
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          // Left Pane (Sidebar)
-          Expanded(
-            flex: 1,
-            child: Container(
-              color: const Color(0xFFF8F8F8), // Light grey background for sidebar
-              child: Stack(
-                children: [
-                  // Scrollable content of the sidebar
-                  SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // App Logo and Title
-                          Row(
-                            children: [
-                              Icon(Icons.favorite_border, color: Theme.of(context).primaryColor, size: 30.0),
-                              const SizedBox(width: 8.0),
-                              Text(
-                                'PalliativeCare',
-                                style: TextStyle(
-                                  fontSize: 24.0,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 30.0),
+    return SidebarScaffold(
+      sidebar: AppSidebar(
+        currentUserName: _currentUserName,
+        userRole: _currentUserRole,
+        onLogout: _logout,
+        selected: SidebarSection.forYou,
+        onOpenForYou: () {},
+        onOpenAllTopics: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => AllTopicsPage(userRole: _currentUserRole)),
+          );
+          // 👇 when back, refresh subscribed posts
+          _refreshForYou();
+        },
+        onOpenMyPosts: () {},
+        onOpenAddPostQA: _currentUserRole == 'PATIENT' ? () {} : null,
+        onOpenChat: (_currentUserRole == 'DOCTOR' || _currentUserRole == 'PATIENT')
+                 ? () {
+                  // This is the navigation code
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ChatListScreen()),
+                  );
+                } : null,
+        onOpenSubscribedTopics: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => SubscribedTopicsPage(userRole: _currentUserRole)),
+          );
+          _refreshForYou();
+        },
+        // optionally show bullets:
+        // subscribedTopics: const ['Pain Management', 'Mindfulness & Meditation'],
+      ),
+      content: _buildForYouContent(context),
+    );
+  }
 
-                          // Search Topics
-                          TextFormField(
-                            decoration: InputDecoration(
-                              labelText: 'Search topics...',
-                              prefixIcon: const Icon(Icons.search),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[200],
-                            ),
-                            onFieldSubmitted: (value) {
-                              // TODO: Implement topic search functionality
-                              print('Searching for topic: $value');
-                            },
-                          ),
-                          const SizedBox(height: 30.0),
-
-                          // Main Navigation
-                          _buildSidebarNavItem(context, Icons.star_border, 'For You', isSelected: true, onTap: () {
-                            // Already on For You Page, simply close any other open pages
-                            // Navigator.popUntil(context, (route) => route.isFirst); // Example for complex navigation
-                          }),
-                          _buildSidebarNavItem(context, Icons.grid_view, 'All Topics', onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => AllTopicsPage(userRole: _currentUserRole)));
-                          }),
-                          _buildSidebarNavItem(context, Icons.my_library_books, 'My Posts'),
-
-                          // Role-based tabs
-                          if (_currentUserRole == 'PATIENT')
-                            _buildSidebarNavItem(context, Icons.post_add, 'Add Post to QA'), // Patient specific tab
-                          if (_currentUserRole == 'DOCTOR')
-                            _buildSidebarNavItem(context, Icons.chat_bubble_outline, 'Chat'), // Doctor specific tab
-
-                          const SizedBox(height: 30.0),
-
-                          // Subscribed Topics Section
-                          const Text(
-                            'Subscribed Topics',
-                            style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold, color: Colors.black87),
-                          ),
-                          const SizedBox(height: 10.0),
-                          _buildSidebarTopicItem(context, 'Pain Management'), // Example subscribed topic
-                          _buildSidebarTopicItem(context, 'Mindfulness & Meditation'), // Example subscribed topic
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => const SubscribedTopicsPage()));
-                            },
-                            child: Text(
-                              'View all subscribed topics →', // Changed text for clarity
-                              style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 14),
-                            ),
-                          ),
-                          const SizedBox(height: 80), // Provide space for the sticky bottom bar
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Sticky Bottom User Info and Logout
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withValues(alpha: 0.1),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, -3), // changes position of shadow
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min, // Wrap content height
-                        children: [
-                          Divider(color: Colors.grey[300], height: 1),
-                          const SizedBox(height: 10),
-                          Text(
-                            _currentUserName, // Display current user's name
-                            style: const TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity, // Make button fill width
-                            child: ElevatedButton.icon(
-                              onPressed: _logout,
-                              icon: const Icon(Icons.logout, size: 20),
-                              label: const Text('Logout'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.redAccent, // Red color for logout
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Right Pane (Posts Feed)
-          Expanded(
-            flex: 3, // Give more space to the content
-            child: Container(
-              color: Colors.white,
-              child: CustomScrollView(
-                controller: _scrollController,
-                slivers: [
+Widget _buildForYouContent(BuildContext context) {
+  return Container(
+    color: Colors.white,
+    child: CustomScrollView(
+      controller: _scrollController,
+      slivers: [
                   SliverAppBar(
                     pinned: true, // Makes the AppBar sticky
                     toolbarHeight: 120, // Height for title and subtitle
@@ -365,56 +260,21 @@ Future<void> _loadCurrentUserData() async {
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+            );
+          }
 
-  Widget _buildSidebarNavItem(BuildContext context, IconData icon, String title, {bool isSelected = false, VoidCallback? onTap}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextButton.icon(
-        onPressed: onTap, // Use the provided onTap callback
-        icon: Icon(icon, color: isSelected ? Theme.of(context).primaryColor : Colors.grey[700]),
-        label: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Theme.of(context).primaryColor : Colors.grey[700],
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 16,
-          ),
-        ),
-        style: TextButton.styleFrom(
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
-          backgroundColor: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildSidebarTopicItem(BuildContext context, String topicName) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 15.0),
-      child: InkWell(
-        onTap: () {
-          print('Topic "$topicName" pressed!');
-          // TODO: Implement navigation to topic-specific feed
-        },
-        child: Text(
-          '• $topicName',
-          style: TextStyle(
-            fontSize: 14.0,
-            color: Colors.grey[700],
-          ),
-        ),
-      ),
-    );
-  }
+    void _refreshForYou() {
+      setState(() {
+        _posts.clear();
+        _currentPage = 0;
+        _hasMore = true;
+      });
+      _fetchPosts();
+    }
+
 }
+
 String _timeAgo(DateTime dt) {
   final now = DateTime.now();
   final diff = now.difference(dt);
