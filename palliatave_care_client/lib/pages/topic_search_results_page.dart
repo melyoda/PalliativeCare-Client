@@ -1,10 +1,16 @@
 // In lib/pages/topic_search_results_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:palliatave_care_client/l10n.dart';
 import 'package:palliatave_care_client/models/api_response.dart';
 import 'package:palliatave_care_client/models/topic.dart';
 import 'package:palliatave_care_client/models/user_account.dart';
+import 'package:palliatave_care_client/pages/all_topics_page.dart';
+import 'package:palliatave_care_client/pages/chat_list_screen.dart';
 import 'package:palliatave_care_client/pages/login_page.dart';
+import 'package:palliatave_care_client/pages/main_screen.dart';
+import 'package:palliatave_care_client/pages/my_posts_page.dart';
+import 'package:palliatave_care_client/pages/subbed_topics_page.dart';
 import 'package:palliatave_care_client/pages/topic_detail_page.dart';
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/util/http_status.dart';
@@ -30,6 +36,7 @@ class _TopicSearchResultsPageState extends State<TopicSearchResultsPage> {
   List<Topic> _foundTopics = [];
   bool _isLoading = true;
   String _currentUserName = 'Loading...';
+  // ignore: unused_field
   String _currentUserId = '';
 
   @override
@@ -65,7 +72,7 @@ class _TopicSearchResultsPageState extends State<TopicSearchResultsPage> {
         await showDialog(
           context: context,
           builder: (ctx) => InfoDialog(
-            title: "Search Error",
+            title:  tr(context, 'search_error_title'),
             message: response.message,
             isError: true,
           ),
@@ -107,10 +114,36 @@ class _TopicSearchResultsPageState extends State<TopicSearchResultsPage> {
         userRole: widget.userRole,
         onLogout: _logout,
         selected: SidebarSection.allTopics,
-        onOpenForYou: () { /* TODO */ },
-        onOpenAllTopics: () => Navigator.pop(context),
-        onOpenMyPosts: () { /* TODO */ },
-        onOpenSubscribedTopics: () { /* TODO */ },
+        onOpenForYou: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ForYouPage()),
+          );
+        },
+        onOpenAllTopics: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AllTopicsPage(userRole: widget.userRole),
+            ),
+          );
+        },
+        onOpenMyPosts: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MyPostsPage()),
+          );
+      },
+      onOpenChat: (widget.userRole == 'DOCTOR' || widget.userRole == 'PATIENT') ? () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatListScreen()),
+          );
+        } : null,
+        onOpenSubscribedTopics: () {
+        Navigator.push(context,
+          MaterialPageRoute(builder: (_) => SubscribedTopicsPage(userRole: widget.userRole)));
+      },
         onSearchSubmitted: (query) {
           if (query.trim().isNotEmpty) {
             Navigator.pushReplacement( // Use pushReplacement to avoid stacking search pages
@@ -138,7 +171,7 @@ class _TopicSearchResultsPageState extends State<TopicSearchResultsPage> {
             pinned: true,
             backgroundColor: Colors.white,
             title: Text(
-              'Results for "${widget.searchKeyword}"',
+              '${tr(context, 'search_results_for')} "${widget.searchKeyword}"',
               style: const TextStyle(color: Colors.black87),
             ),
             iconTheme: const IconThemeData(color: Colors.black87),
@@ -148,9 +181,9 @@ class _TopicSearchResultsPageState extends State<TopicSearchResultsPage> {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (_foundTopics.isEmpty)
-            const SliverFillRemaining(
+            SliverFillRemaining(
               child: Center(
-                child: Text('No topics found matching your search.'),
+                child: Text(tr(context, 'no_search_results_found')),
               ),
             )
           else

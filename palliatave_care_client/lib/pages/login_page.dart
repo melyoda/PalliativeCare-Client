@@ -1,15 +1,14 @@
 
-// Login Page - typically in `lib/pages/login_page.dart`
 import 'package:flutter/material.dart';
 
 import 'package:palliatave_care_client/services/api_service.dart';
-import 'package:palliatave_care_client/models/api_response.dart'; // Assuming you move ApiResponse there
+import 'package:palliatave_care_client/models/api_response.dart'; 
 import 'package:palliatave_care_client/widgets/info_dialog.dart';
 import 'package:palliatave_care_client/pages/registration_page.dart';
 import 'package:palliatave_care_client/pages/main_screen.dart';
-import 'package:palliatave_care_client/util/http_status.dart'; // Import HttpStatus
+import 'package:palliatave_care_client/util/http_status.dart'; 
 import '../models/login_response.dart'; 
-
+import '../l10n.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -33,19 +32,22 @@ class _LoginPageState extends State<LoginPage> {
         _passwordController.text,
       );
       if (apiResponse.status == HttpStatus.OK.name) {
-        await _showInfoDialog(context, apiResponse.message, title: "Login Successful!");
+        await _showInfoDialog(context, apiResponse.message, title: tr(context, 'login_success_title'));
         // ApiService now handles saving token and user profile internally after parsing LoginResponse
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ForYouPage()));
       } else {
-        await _showInfoDialog(context, apiResponse.message, title: "Login Failed", isError: true);
+        await _showInfoDialog(context, apiResponse.message, title: tr(context, 'login_failed_title'), isError: true);
       }
     }
   }
 
   Future<void> _showInfoDialog(BuildContext context, String message, {String title = 'Information', bool isError = false}) async {
+    // The default title here is a fallback; we pass a translated one from _loginUser.
+    // If you call this from somewhere else, you can pass a translated title too.
+    final dialogTitle = title == 'Information' ? tr(context, 'dialog_info_title') : title;
     return await showDialog(
       context: context,
-      builder: (ctx) => InfoDialog(title: title, message: message, isError: isError),
+      builder: (ctx) => InfoDialog(title: dialogTitle, message: message, isError: isError),
     );
   }
 
@@ -66,8 +68,8 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   const Icon(Icons.favorite_border, color: Colors.white, size: 48.0),
                   const SizedBox(height: 10.0),
-                  const Text(
-                    'CareConnect',
+                  Text(
+                    tr(context, 'app_title'),
                     style: TextStyle(
                       fontSize: 32.0,
                       fontWeight: FontWeight.bold,
@@ -75,21 +77,29 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 10.0),
-                  const Text(
-                    'Compassionate care, connected digitally',
+                  Text(
+                    tr(context, 'app_tagline'), // <-- Changed
                     style: TextStyle(
                       fontSize: 18.0,
                       color: Colors.white70,
                     ),
                   ),
                   const SizedBox(height: 40.0),
-                  _buildFeatureItem(Icons.lock_outline, 'Secure & Private', 'Your health data is protected with enterprise-grade security'),
+                  _buildFeatureItem(
+                    Icons.lock_outline,
+                    tr(context, 'feature_secure_title'), // <-- Changed
+                    tr(context, 'feature_secure_desc'), // <-- Changed
+                  ),
                   const SizedBox(height: 20.0),
-                  _buildFeatureItem(Icons.people_outline, 'Expert Care Team', 'Connect with specialized healthcare professionals'),
+                  _buildFeatureItem(
+                    Icons.people_outline,
+                    tr(context, 'feature_expert_title'), // <-- Changed
+                    tr(context, 'feature_expert_desc'), // <-- Changed
+                  ),
                 ],
               ),
             ),
-          ), // <-- Added a comma here!
+          ),
           // Right Pane (Form)
           Expanded(
             flex: 2,
@@ -104,26 +114,29 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Welcome back',
+                        Text(
+                          tr(context, 'login_welcome'), // <-- Changed
                           style: TextStyle(fontSize: 32.0, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 10.0),
-                        const Text(
-                          'Please sign in to your account to continue',
+                        Text(
+                          tr(context, 'login_prompt'), // <-- Changed
                           style: TextStyle(fontSize: 16.0, color: Colors.grey),
                         ),
                         const SizedBox(height: 30.0),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(labelText: 'Email Address', hintText: 'youremail@example.com'),
+                          decoration: InputDecoration(
+                            labelText: tr(context, 'email_address_label'), // <-- Changed
+                            hintText: 'youremail@example.com',
+                          ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
+                              return tr(context, 'email_validator_empty'); // <-- Changed
                             }
                             if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                              return 'Please enter a valid email address';
+                              return tr(context, 'email_validator_invalid'); // <-- Changed
                             }
                             return null;
                           },
@@ -132,10 +145,13 @@ class _LoginPageState extends State<LoginPage> {
                         TextFormField(
                           controller: _passwordController,
                           obscureText: true,
-                          decoration: const InputDecoration(labelText: 'Password', hintText: 'Enter your password'),
+                          decoration: InputDecoration(
+                            labelText: tr(context, 'password_label'), // <-- Changed
+                            hintText: tr(context, 'password_hint'), // <-- Changed
+                          ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your password';
+                              return tr(context, 'password_validator_empty'); // <-- Changed
                             }
                             return null;
                           },
@@ -155,7 +171,7 @@ class _LoginPageState extends State<LoginPage> {
                                   },
                                   activeColor: Theme.of(context).primaryColor,
                                 ),
-                                const Text('Remember me'),
+                                Text(tr(context, 'remember_me')), // <-- Changed
                               ],
                             ),
                             TextButton(
@@ -163,7 +179,7 @@ class _LoginPageState extends State<LoginPage> {
                                 // TODO: Implement forgot password functionality
                                 print('Forgot Password pressed!');
                               },
-                              child: const Text('Forgot password?'),
+                              child: Text(tr(context, 'forgot_password')), // <-- Changed
                             ),
                           ],
                         ),
@@ -172,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: _loginUser,
-                            child: const Text('Sign In'),
+                            child: Text(tr(context, 'login_title')),
                           ),
                         ),
                         const SizedBox(height: 30.0),
@@ -183,11 +199,11 @@ class _LoginPageState extends State<LoginPage> {
                             },
                             child: RichText(
                               text: TextSpan(
-                                text: 'Don\'t have an account? ',
+                                text: tr(context, 'no_account_prompt'), // <-- Changed
                                 style: TextStyle(color: Colors.grey[700], fontSize: 16.0),
                                 children: [
                                   TextSpan(
-                                    text: 'Create one now',
+                                    text: tr(context, 'create_account_now'), // <-- Changed
                                     style: TextStyle(
                                       color: Theme.of(context).primaryColor,
                                       fontWeight: FontWeight.bold,
@@ -211,6 +227,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // This helper widget uses translated strings passed as arguments
   Widget _buildFeatureItem(IconData icon, String title, String description) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,7 +239,7 @@ class _LoginPageState extends State<LoginPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
+                title, // Now gets the translated title
                 style: const TextStyle(
                   fontSize: 18.0,
                   fontWeight: FontWeight.bold,
@@ -230,7 +247,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               Text(
-                description,
+                description, // Now gets the translated description
                 style: const TextStyle(
                   fontSize: 14.0,
                   color: Colors.white70,
@@ -241,5 +258,5 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ],
     );
-    }
   }
+}

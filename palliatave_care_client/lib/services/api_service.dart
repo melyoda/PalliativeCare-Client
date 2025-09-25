@@ -782,6 +782,52 @@ Future<List<ChatConversation>> getConversations() async {
   }
 }
 
+Future<List<UserAccount>> getAllUsers() async {
+  final url = Uri.parse('$_baseUrl/api/users'); // Ensure this matches your new controller path
+  final token = await getToken();
+
+  final response = await http.get(
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    // 1. Decode the entire response body as a Map (a JSON object)
+    Map<String, dynamic> responseBody = json.decode(response.body);
+
+    // 2. Extract the list of users from the 'data' key
+    //    We cast it to List<dynamic> to be safe.
+    List<dynamic> userList = responseBody['data'] as List<dynamic>;
+
+    // 3. Now, map the extracted list just like before
+    return userList.map((dynamic item) => UserAccount.fromJson(item)).toList();
+    
+  } else {
+    // You can even parse the error message from your ApiResponse here
+    throw Exception('Failed to load users');
+  }
+}
+
+Future<List<ChatMessage>> getChatHistory(String roomId) async {
+  final url = Uri.parse('$_baseUrl/api/chats/$roomId/messages');
+  final token = await getToken();
+
+  final response = await http.get(url, headers: {
+    'Authorization': 'Bearer $token',
+  });
+
+  if (response.statusCode == 200) {
+    List<dynamic> body = json.decode(response.body);
+    // You'll need a fromJson constructor in your ChatMessage model
+    return body.map((dynamic item) => ChatMessage.fromJson(item)).toList();
+  } else {
+    throw Exception('Failed to load chat history');
+  }
+}
+
 static Future<void> warmUpServer() async {
     final String baseUrl = 'https://palliativecare-k6g2.onrender.com';
     
@@ -795,6 +841,64 @@ static Future<void> warmUpServer() async {
     } catch (e) {
       // This will catch any type of exception, including TimeoutException
       print('Server warm-up ping completed (may have timed out, which is okay): $e');
+    }
+  }
+
+   Future<ApiResponse<List<PostSummary>>> getMyPosts() async {
+    // This endpoint matches the one you created in your Spring Boot PostController
+    final url = Uri.parse('$_baseUrl$_postsPath/my-posts');
+    try {
+      final String? token = await getToken();
+      if (token == null) {
+        return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name,
+          message: "No authentication token found. Please log in.",
+        );
+      }
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+        print('Raw Response from /my-posts: ${response.body}');
+
+      if (response.body.isEmpty) {
+        return ApiResponse(
+          status: HttpStatus.OK.name,
+          message: "No posts found.",
+          data: [], // Return an empty list
+        );
+      }
+
+      final decodedResponse = json.decode(response.body);
+
+      // Check for the 'status' and 'data' keys from your custom ApiResponse in the backend
+      if (decodedResponse['status'] == 'OK' && decodedResponse['data'] != null) {
+        final List<dynamic> postJsonList = decodedResponse['data'] ?? [];
+        
+        // Your backend returns EnrichedPostDTO, which should map to your PostSummary model
+        final List<PostSummary> posts = postJsonList.map((json) => PostSummary.fromJson(json)).toList();
+        
+        return ApiResponse(
+          status: 'OK',
+          message: decodedResponse['message'] ?? "My Posts fetched successfully",
+          data: posts,
+        );
+      } else {
+        return ApiResponse(
+          status: decodedResponse['status']?.toString() ?? HttpStatus.BAD_REQUEST.name,
+          message: decodedResponse['message'] ?? "Failed to fetch your posts",
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        status: HttpStatus.INTERNAL_SERVER_ERROR.name,
+        message: "Failed to connect to the server: $e",
+      );
     }
   }
 

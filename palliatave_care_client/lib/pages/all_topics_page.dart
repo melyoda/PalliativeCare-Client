@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:palliatave_care_client/l10n.dart'; 
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/models/api_response.dart'; // Assuming you move ApiResponse there
 import 'package:palliatave_care_client/widgets/info_dialog.dart';
@@ -9,9 +9,8 @@ import '../pages/add_topics_page.dart';
 import '../pages/topic_detail_page.dart';
 import '../widgets/topic_card.dart';
 
-// AllTopicsPage - Displays all available topics
 class AllTopicsPage extends StatefulWidget {
-  final String userRole; // Pass the user's role to conditionally show the "Add Topic" button
+  final String userRole;
 
   const AllTopicsPage({super.key, required this.userRole});
 
@@ -22,13 +21,14 @@ class AllTopicsPage extends StatefulWidget {
 class _AllTopicsPageState extends State<AllTopicsPage> {
   final ApiService _apiService = ApiService();
   List<Topic> _allTopics = [];
-  List<String> _userSubscribedTopicIds = []; // New list to hold subscribed topic IDs
+  List<String> _userSubscribedTopicIds = [];
   bool _isLoading = false;
+  static const String qaTopicId = '68d4f9689432a68dd3b44d95'; // The fixed ID for the Q&A topic
 
   @override
   void initState() {
     super.initState();
-    _loadTopicsAndSubscriptions(); // Load both topics and user's subscriptions
+    _loadTopicsAndSubscriptions();
   }
 
   Future<void> _loadTopicsAndSubscriptions() async {
@@ -39,61 +39,68 @@ class _AllTopicsPageState extends State<AllTopicsPage> {
     final topicsResponse = await _apiService.getAllTopics();
     final subscribedTopicsResponse = await _apiService.getSubscribedTopicIds();
 
+    if (!mounted) return;
+
     if (topicsResponse.status == HttpStatus.OK.name && topicsResponse.data != null) {
       _allTopics = topicsResponse.data!;
     } else {
-      await _showInfoDialog(context, topicsResponse.message, title: "Error Fetching Topics", isError: true);
+      await _showInfoDialog(context, topicsResponse.message, title: tr(context, 'error_fetching_topics'), isError: true); // <-- Changed
     }
 
     if (subscribedTopicsResponse.status == HttpStatus.OK.name && subscribedTopicsResponse.data != null) {
       _userSubscribedTopicIds = subscribedTopicsResponse.data!;
-      print('AllTopicsPage: Subscribed Topic IDs loaded: $_userSubscribedTopicIds'); // DIAGNOSTIC PRINT
     } else {
-      // This is the specific place the FormatException likely occurs.
-      // The error dialog is shown, but the data remains empty, leading to "No topics available yet."
-      await _showInfoDialog(context, subscribedTopicsResponse.message, title: "Error Fetching Subscriptions", isError: true);
-      _userSubscribedTopicIds = []; // Ensure it's an empty list to prevent further errors
+      await _showInfoDialog(context, subscribedTopicsResponse.message, title: tr(context, 'error_fetching_subscriptions'), isError: true); // <-- Changed
+      _userSubscribedTopicIds = [];
     }
-    print('AllTopicsPage: User Role received: ${widget.userRole}'); // DIAGNOSTIC PRINT
 
     setState(() {
       _isLoading = false;
     });
   }
 
-
   Future<void> _handleSubscribe(String topicId) async {
     final ApiResponse<String> apiResponse = await _apiService.registerToTopic(topicId);
+    if (!mounted) return;
     if (apiResponse.status == HttpStatus.OK.name) {
-      await _showInfoDialog(context, apiResponse.message, title: "Subscribed Successfully!");
-      _loadTopicsAndSubscriptions(); // Refresh data
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'subscribed_successfully')); // <-- Changed
+      _loadTopicsAndSubscriptions();
     } else {
-      await _showInfoDialog(context, apiResponse.message, title: "Subscription Failed", isError: true);
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'subscription_failed'), isError: true); // <-- Changed
     }
   }
 
   Future<void> _handleUnsubscribe(String topicId) async {
     final ApiResponse<String> apiResponse = await _apiService.unregisterFromTopic(topicId);
+    if (!mounted) return;
     if (apiResponse.status == HttpStatus.OK.name) {
-      await _showInfoDialog(context, apiResponse.message, title: "Unsubscribed Successfully!");
-      _loadTopicsAndSubscriptions(); // Refresh data
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'unsubscribed_successfully')); // <-- Changed
+      _loadTopicsAndSubscriptions();
     } else {
-      await _showInfoDialog(context, apiResponse.message, title: "Unsubscription Failed", isError: true);
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'unsubscription_failed'), isError: true); // <-- Changed
     }
   }
 
   Future<void> _showInfoDialog(BuildContext context, String message, {String title = 'Information', bool isError = false}) async {
+    final dialogTitle = title == 'Information' ? tr(context, 'dialog_info_title') : title;
     return await showDialog(
       context: context,
-      builder: (ctx) => InfoDialog(title: title, message: message, isError: isError),
+      builder: (ctx) => InfoDialog(title: dialogTitle, message: message, isError: isError),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+  List<Topic> displayedTopics = _allTopics;
+
+  // If the user is a patient, filter out the QA topic.
+  if (widget.userRole == 'PATIENT') {
+    displayedTopics = _allTopics.where((topic) => topic.id != qaTopicId).toList();
+  }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('All Topics'),
+        title: Text(tr(context, 'all_topics_title')), // <-- Changed
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -105,22 +112,22 @@ class _AllTopicsPageState extends State<AllTopicsPage> {
                   child: _allTopics.isEmpty
                       ? Center(
                           child: Text(
-                            'No topics available yet.',
+                            tr(context, 'no_topics_available'), // <-- Changed
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                           ),
                         )
-                      : GridView.builder( // Using GridView for a nicer layout
+                      : GridView.builder(
                           padding: const EdgeInsets.all(16.0),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2, // 2 cards per row
-                            childAspectRatio: 3 / 2, // Adjust card aspect ratio
+                            crossAxisCount: 2,
+                            childAspectRatio: 3 / 2,
                             crossAxisSpacing: 16.0,
                             mainAxisSpacing: 16.0,
                           ),
-                          itemCount: _allTopics.length,
+                          itemCount: displayedTopics.length,
                           itemBuilder: (context, index) {
-                            final topic = _allTopics[index];
+                            final topic = displayedTopics[index];
                             final isSubscribed = _userSubscribedTopicIds.contains(topic.id);
                             return TopicCard(
                               topic: topic,
@@ -133,13 +140,13 @@ class _AllTopicsPageState extends State<AllTopicsPage> {
                                   MaterialPageRoute(
                                     builder: (context) => TopicDetailPage(topic: topic, userRole: widget.userRole),
                                   ),
-                                ).then((_) => _loadTopicsAndSubscriptions()); // Refresh on return
+                                ).then((_) => _loadTopicsAndSubscriptions());
                               },
                             );
                           },
                         ),
                 ),
-                if (widget.userRole == 'DOCTOR') // Only show "Add Topic" button for doctors
+                if (widget.userRole == 'DOCTOR')
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: SizedBox(
@@ -147,12 +154,12 @@ class _AllTopicsPageState extends State<AllTopicsPage> {
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddTopicPage()));
-                          _loadTopicsAndSubscriptions(); // Refresh topics after returning from AddTopicPage
+                          _loadTopicsAndSubscriptions();
                         },
                         icon: const Icon(Icons.add, size: 24),
-                        label: const Text('Add New Topic'),
+                        label: Text(tr(context, 'add_new_topic_title')), // <-- Changed (reusing key)
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.secondary, // Use accent color
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

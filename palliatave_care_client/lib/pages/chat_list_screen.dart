@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../models/chat_models.dart';  
 import '../pages/chat_detail_screen.dart';
 import '../models/user_account.dart';
-
+import '../pages/new_chat_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -37,6 +37,24 @@ class _ChatListScreenState extends State<ChatListScreen> {
       // Handle user not found, maybe pop back to login
       print('ChatListScreen: User profile not found.');
     }
+  }
+
+    void _refreshConversations() {
+    setState(() {
+      futureConversations = apiService.getConversations();
+    });
+  }
+   void _navigateToNewChat() async {
+    // Navigate to the new screen and wait for it to be closed
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NewChatScreen(currentUserId: _currentUserId),
+      ),
+    );
+
+    // When we come back from the NewChatScreen, refresh the list
+    _refreshConversations();
   }
 
   @override
@@ -98,44 +116,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
         },
       ),
       // 👇👇👇 ADD THE BUTTON CODE RIGHT HERE 👇👇👇
-    floatingActionButton: FloatingActionButton(
-      onPressed: () {
-        // --- This is the logic to start a NEW chat ---
-
-        // 1. Make sure we have the current user's ID
-        if (_currentUserId.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cannot start chat: User ID not loaded.'))
-          );
-          return;
-        }
-
-        // 2. Define the user you want to chat WITH (for testing)
-        // IMPORTANT: Make sure this ID actually exists in your database
-        const otherUserId = "68a1cb466dc9368611082359"; // Example ID
-        const otherUserName = "Ahmad.doe@example.com"; // Example Name
-
-        // 3. Create a unique, consistent roomId
-        List<String> ids = [_currentUserId, otherUserId];
-        ids.sort();
-        final roomId = ids.join('_'); // e.g., "doctor456_patient123"
-
-        // 4. Navigate to the chat screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatDetailScreen(
-              roomId: roomId,
-              otherParticipantName: otherUserName,
-              currentUserId: _currentUserId,
-            ),
-          ),
-        );
-      },
-      child: const Icon(Icons.add),
-      tooltip: 'Start New Chat',
+      floatingActionButton: FloatingActionButton(
+        onPressed: () { // 🚀 MODIFIED
+          if (_currentUserId.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cannot start chat: User ID not loaded.'))
+            );
+            return;
+          }
+          // Navigate to the user selection screen
+          _navigateToNewChat();
+        },
+        tooltip: 'Start New Chat',
+        child: const Icon(Icons.add),
     ),
-    // 👆👆👆 END OF BUTTON CODE 👆👆👆
     );
   }
 }

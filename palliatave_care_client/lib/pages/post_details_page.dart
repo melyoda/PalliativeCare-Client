@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import 'package:palliatave_care_client/l10n.dart';
 // --- Model, Service, and Utility Imports ---
 import 'package:palliatave_care_client/models/api_response.dart';
 import 'package:palliatave_care_client/models/enriched_post.dart';
 import 'package:palliatave_care_client/models/comment_dto.dart';
+import 'package:palliatave_care_client/pages/chat_list_screen.dart';
+import 'package:palliatave_care_client/pages/my_posts_page.dart';
+import 'package:palliatave_care_client/pages/topic_search_results_page.dart';
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/util/http_status.dart';
 
@@ -17,7 +20,7 @@ import 'package:palliatave_care_client/widgets/app_sidebar.dart';
 
 // --- Page Imports (for navigation) ---
 import 'package:palliatave_care_client/pages/login_page.dart';
-import 'package:palliatave_care_client/pages/main_screen.dart'; // Contains ForYouPage
+import 'package:palliatave_care_client/pages/main_screen.dart'; 
 import 'package:palliatave_care_client/pages/all_topics_page.dart';
 import 'package:palliatave_care_client/pages/subbed_topics_page.dart';
 
@@ -42,11 +45,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
   EnrichedPost? _enrichedPost;
   bool _isLoading = true;
 
-  // State for sidebar data
   String _currentUserName = 'Loading User...';
   String _currentUserRole = 'Loading Role...';
 
-  // State for comments
   final TextEditingController _commentCtrl = TextEditingController();
   bool _isSubmittingComment = false;
 
@@ -75,13 +76,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
       _logout();
     }
   }
-  
-  // --- All your existing logic functions (_fetchPostDetails, _submitComment, etc.) remain unchanged ---
 
   Future<void> _fetchPostDetails() async {
     setState(() => _isLoading = true);
-    final ApiResponse<EnrichedPost> apiResponse =
-        await _apiService.getEnrichedPost(widget.postId);
+    final ApiResponse<EnrichedPost> apiResponse = await _apiService.getEnrichedPost(widget.postId);
 
     if (!mounted) return;
 
@@ -91,8 +89,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
         _isLoading = false;
       });
     } else {
-      await _showInfoDialog(context, apiResponse.message,
-          title: "Error Fetching Post", isError: true);
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'error_fetching_post'), isError: true); // <-- Changed
       setState(() => _isLoading = false);
     }
   }
@@ -103,10 +100,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
     setState(() => _isSubmittingComment = true);
 
-    final resp = await _apiService.addComment(
-      widget.postId,
-      CommentDTO(text: text),
-    );
+    final resp = await _apiService.addComment(widget.postId, CommentDTO(text: text));
 
     if (!mounted) return;
 
@@ -114,12 +108,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
       _commentCtrl.clear();
       await _fetchPostDetails();
     } else if (resp.status == HttpStatus.UNAUTHORIZED.name) {
-      await _showInfoDialog(context, resp.message,
-          title: "Authentication Required", isError: true);
+      await _showInfoDialog(context, resp.message, title: tr(context, 'auth_required'), isError: true); // <-- Changed
       _logout();
     } else {
-      await _showInfoDialog(context, resp.message,
-          title: "Failed to add comment", isError: true);
+      await _showInfoDialog(context, resp.message, title: tr(context, 'failed_add_comment'), isError: true); // <-- Changed
     }
 
     if (mounted) setState(() => _isSubmittingComment = false);
@@ -129,17 +121,17 @@ class _PostDetailPageState extends State<PostDetailPage> {
     final bool confirm = await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Confirm Deletion'),
-            content: const Text(
-                'Are you sure you want to delete this post? This action cannot be undone.'),
+            title: Text(tr(context, 'confirm_deletion_title')), // <-- Changed
+            content: Text(tr(context, 'confirm_deletion_body')), // <-- Changed
             actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr(context, 'cancel'))), // <-- Changed
               TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text('Cancel')),
-              TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: const Text('Delete',
-                      style: TextStyle(color: Colors.red))),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  tr(context, 'delete'), // <-- Changed
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
             ],
           ),
         ) ??
@@ -147,35 +139,31 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
     if (!confirm) return;
 
-    final ApiResponse<String> apiResponse =
-        await _apiService.deletePost(widget.postId);
+    final ApiResponse<String> apiResponse = await _apiService.deletePost(widget.postId);
 
     if (!mounted) return;
 
     if (apiResponse.status == HttpStatus.OK.name) {
-      await _showInfoDialog(context, 'Post deleted successfully.',
-          title: 'Success');
+      await _showInfoDialog(context, tr(context, 'post_deleted_success'), title: tr(context, 'success_title')); // <-- Changed
       Navigator.of(context).pop();
     } else {
-      await _showInfoDialog(context, apiResponse.message,
-          title: 'Deletion Failed', isError: true);
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'deletion_failed_title'), isError: true); // <-- Changed
     }
   }
 
   Future<void> _handleUpdatePost() async {
     await _showInfoDialog(
       context,
-      'Update functionality is not yet implemented.',
-      title: 'Coming Soon',
+      tr(context, 'update_not_implemented'), // <-- Changed
+      title: tr(context, 'coming_soon_title'), // <-- Changed
     );
   }
 
-  Future<void> _showInfoDialog(BuildContext context, String message,
-      {String title = 'Information', bool isError = false}) async {
+  Future<void> _showInfoDialog(BuildContext context, String message, {String title = 'Information', bool isError = false}) async {
+    final dialogTitle = title == 'Information' ? tr(context, 'dialog_info_title') : title;
     return await showDialog(
       context: context,
-      builder: (ctx) =>
-          InfoDialog(title: title, message: message, isError: isError),
+      builder: (ctx) => InfoDialog(title: dialogTitle, message: message, isError: isError),
     );
   }
 
@@ -189,20 +177,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
     );
   }
 
-  // ❌ 2. REMOVE the internal sidebar helper methods (`_buildSidebarNavItem`, `_buildSidebarTopicItem`)
-
   @override
   Widget build(BuildContext context) {
-    // ✅ 3. USE `SidebarScaffold` for the main layout
     return SidebarScaffold(
-      // ✅ 4. CONFIGURE the `AppSidebar` widget with data and callbacks
       sidebar: AppSidebar(
         currentUserName: _currentUserName,
         userRole: _currentUserRole,
         onLogout: _logout,
-        // Since this is a detail page, no sidebar item is "active".
-        // We pass a default value, so none of the items will be highlighted.
-        selected: SidebarSection.forYou, 
+        selected: SidebarSection.forYou,
         onOpenForYou: () {
           Navigator.pushReplacement(
             context,
@@ -218,8 +200,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
           );
         },
         onOpenMyPosts: () {
-          // TODO: Navigate to My Posts page
-        },
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MyPostsPage()),
+          );
+      },
         onOpenSubscribedTopics: () {
           Navigator.push(
             context,
@@ -228,18 +213,33 @@ class _PostDetailPageState extends State<PostDetailPage> {
             ),
           );
         },
-        onOpenAddPostQA: _currentUserRole == 'PATIENT' ? () {/* TODO */} : null,
-        onOpenChat: _currentUserRole == 'DOCTOR' ? () {/* TODO */} : null,
-        // Using hardcoded topics from your original code. You might want to fetch these dynamically.
-        subscribedTopics: const ['Pain Management', 'Mindfulness & Meditation'],
+        // onOpenAddPostQA: _currentUserRole == 'PATIENT' ? () {} : null,
+        onOpenChat: (_currentUserRole == 'DOCTOR' || _currentUserRole == 'PATIENT') ? () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatListScreen()),
+          );
+        } : null,
+        subscribedTopics: [
+          // tr(context, 'example_topic_pain'), // <-- Changed
+          // tr(context, 'example_topic_mindfulness'), // <-- Changed
+        ],
+        onSearchSubmitted: (String query) {
+          Navigator.push( // You can use push or pushReplacement
+            context,
+            MaterialPageRoute(
+              builder: (context) => TopicSearchResultsPage(
+                searchKeyword: query,
+                userRole: _currentUserRole, // Pass the user role
+              ),
+            ),
+          );
+        },
       ),
-      // ✅ 5. PASS the main page content to the 'content' property
       content: _buildContent(),
     );
   }
 
-  /// ✅ 6. EXTRACT the main content into its own builder method for clarity.
-  /// This widget contains the original content part of your page.
   Widget _buildContent() {
     final bool isAuthor = _enrichedPost != null && _enrichedPost!.author.id == widget.userId;
 
@@ -248,8 +248,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _enrichedPost == null
-              ? const Center(
-                  child: Text('Post not found.', style: TextStyle(fontSize: 16)),
+              ? Center(
+                  child: Text(tr(context, 'post_not_found'), style: const TextStyle(fontSize: 16)), // <-- Changed
                 )
               : CustomScrollView(
                   slivers: [
@@ -280,12 +280,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                     IconButton(
                                       icon: const Icon(Icons.edit, color: Colors.blueGrey),
                                       onPressed: _handleUpdatePost,
-                                      tooltip: 'Edit Post',
+                                      tooltip: tr(context, 'edit_post_tooltip'), // <-- Changed
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.delete, color: Colors.redAccent),
                                       onPressed: _handleDeletePost,
-                                      tooltip: 'Delete Post',
+                                      tooltip: tr(context, 'delete_post_tooltip'), // <-- Changed
                                     ),
                                   ],
                                 ],
@@ -303,10 +303,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               ),
                               const SizedBox(height: 6.0),
                               Text(
+                                // <-- Logic for dynamic author string
                                 () {
                                   final author = _enrichedPost!.author;
                                   final when = DateFormat.yMMMd().add_jm().format(_enrichedPost!.creationDate);
-                                  return 'by ${author.firstName} ${author.lastName} (${author.role}) • $when';
+                                  // Constructing the string with translated "by"
+                                  return '${tr(context, 'post_author_by')} ${author.firstName} ${author.lastName} (${author.role}) • $when';
                                 }(),
                                 style: TextStyle(fontSize: 13.0, color: Colors.grey[600]),
                               ),
@@ -326,11 +328,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               _enrichedPost!.content,
                               style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
                             ),
-
-                            // --- Resources Section ---
                             if (_enrichedPost!.resources.isNotEmpty) ...[
                               const SizedBox(height: 30),
-                              const Text('Resources', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                              Text(tr(context, 'resources_title'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), // <-- Changed
                               const SizedBox(height: 15),
                               GridView.builder(
                                 shrinkWrap: true,
@@ -348,9 +348,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               ),
                             ],
                             const SizedBox(height: 30),
-
-                            // --- Add Comment Section ---
-                            const Text('Add a comment', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(tr(context, 'add_comment_title'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), // <-- Changed
                             const SizedBox(height: 10),
                             Row(
                               children: [
@@ -360,7 +358,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                     minLines: 1,
                                     maxLines: 4,
                                     decoration: InputDecoration(
-                                      hintText: 'Write your comment...',
+                                      hintText: tr(context, 'comment_hint_text'), // <-- Changed
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                     ),
@@ -379,7 +377,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                           ),
                                         )
                                       : const Icon(Icons.send),
-                                  label: const Text('Post'),
+                                  label: Text(tr(context, 'post_comment_button')), // <-- Changed
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Theme.of(context).primaryColor,
                                     foregroundColor: Colors.white,
@@ -389,12 +387,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               ],
                             ),
                             const SizedBox(height: 30),
-                            
-                            // --- Comments List Section ---
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Comments', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                                Text(tr(context, 'comments_title'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), // <-- Changed
                                 Text(
                                   '${_enrichedPost!.comments.length}',
                                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -404,7 +400,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             const SizedBox(height: 10),
                             if (_enrichedPost!.comments.isEmpty)
                               Text(
-                                'No comments yet. Be the first to comment!',
+                                tr(context, 'no_comments_yet'), // <-- Changed
                                 style: TextStyle(color: Colors.grey[600]),
                               )
                             else

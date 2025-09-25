@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 // import 'package:intl/intl.dart'; // For date formatting
 import 'package:palliatave_care_client/pages/login_page.dart';
 import 'services/api_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:palliatave_care_client/l10n.dart'; 
+import 'package:google_fonts/google_fonts.dart';
 
 
 void main() {
@@ -17,11 +20,20 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PalliatveCare App',
+      debugShowCheckedModeBanner: false,
+
+      // RTL + Arabic
+      locale: const Locale('ar'), // Force Arabic for now; remove to follow device
+      supportedLocales: const [Locale('en'), Locale('ar')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+
+      // Use a localized title (requires l10n.dart import)
+      onGenerateTitle: (ctx) => tr(ctx, 'app_title'),
+
       theme: ThemeData(
-        primarySwatch: Colors.blue, // Using a blue accent for primary actions
+        primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
-        fontFamily: 'Inter', // Assuming 'Inter' font is available or will be set up
+        fontFamily: GoogleFonts.cairo().fontFamily,
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.0),
@@ -37,13 +49,13 @@ class MyApp extends StatelessWidget {
           ),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
-          hintStyle: TextStyle(color: Colors.grey[400]),
-          labelStyle: TextStyle(color: Colors.grey[700]),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 12.0, horizontal: 15.0
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF007BFF), // A vibrant blue
+            backgroundColor: const Color(0xFF007BFF),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8.0),
@@ -55,11 +67,11 @@ class MyApp extends StatelessWidget {
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: Colors.blue[700], // For links and secondary actions
+            foregroundColor: Colors.blue, // no shade to avoid nullability warnings
           ),
         ),
       ),
-      home: const LoginPage(), // Start with the login page
+      home: const LoginPage(),
     );
   }
 }

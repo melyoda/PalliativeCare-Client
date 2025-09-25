@@ -1,7 +1,11 @@
 
 // Mock Main Screen - typically in `lib/pages/main_screen.dart`
 import 'package:flutter/material.dart';
+import 'package:palliatave_care_client/l10n.dart';
 import 'package:palliatave_care_client/models/post_summary_page_response.dart';
+import 'package:palliatave_care_client/pages/my_posts_page.dart';
+import 'package:palliatave_care_client/pages/topic_detail_page.dart';
+import 'package:palliatave_care_client/pages/topic_search_results_page.dart';
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/models/api_response.dart'; 
 import 'package:palliatave_care_client/widgets/info_dialog.dart';
@@ -34,19 +38,17 @@ class _ForYouPageState extends State<ForYouPage> {
   final int _pageSize = 10;
   final ScrollController _scrollController = ScrollController();
 
-  // State variable to hold the current user's name and role
   String _currentUserName = 'Loading User...';
-  String _currentUserRole = 'Loading Role...'; // New state for user role
+  String _currentUserRole = 'Loading Role...';
   String _currentUserId = '';
 
   @override
   void initState() {
     super.initState();
     _fetchPosts();
-    _loadCurrentUserData(); // Load user name and role when the page initializes
+    _loadCurrentUserData();
     _scrollController.addListener(() {
-      // Check if user has scrolled to the bottom AND there's more data to load AND not currently loading
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.9 && _hasMore && !_isLoading) { // Trigger slightly before end
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.9 && _hasMore && !_isLoading) {
         _fetchPosts();
       }
     });
@@ -58,51 +60,41 @@ class _ForYouPageState extends State<ForYouPage> {
     super.dispose();
   }
 
-  // Method to load the current user's data (name and role) from secure storage
-Future<void> _loadCurrentUserData() async {
-  UserAccount? userAccount = await _apiService.loadUserProfile();
-  if (userAccount != null) {
-    setState(() {
-      _currentUserName = '${userAccount.firstName} ${userAccount.lastName}';
-      _currentUserRole = userAccount.role;
+  Future<void> _loadCurrentUserData() async {
+    UserAccount? userAccount = await _apiService.loadUserProfile();
 
-      // ✅ NEW: Keep track of the userId for PostDetailPage
-      _currentUserId = userAccount.id;
-
-      print('ForYouPage: User Role Loaded: $_currentUserRole, User ID: $_currentUserId');
-    });
-  } else {
-    // Handle case where user profile is not found (e.g., redirect to login)
-    print('ForYouPage: User profile not found in secure storage. Redirecting to login.');
-    _logout();
+    if (mounted && userAccount != null) {
+      setState(() {
+        _currentUserName = '${userAccount.firstName} ${userAccount.lastName}';
+        _currentUserRole = userAccount.role;
+        _currentUserId = userAccount.id;
+      });
+    } else if (mounted) {
+      _logout();
+    }
   }
-}
-
 
   Future<void> _fetchPosts() async {
-    if (_isLoading || !_hasMore) return; // Prevent multiple simultaneous fetches or fetching when no more data
+    if (_isLoading || !_hasMore) return;
 
     setState(() {
       _isLoading = true;
     });
 
-// CHANGE 1: Correctly type the apiResponse to expect a PostPageResponse
     final ApiResponse<PostSummaryPageResponse> apiResponse = await _apiService.getPostsFromSubscribedTopicsPaged(
       _currentPage,
       _pageSize,
     );
 
+    if (!mounted) return;
+
     if (apiResponse.status == HttpStatus.OK.name && apiResponse.data != null) {
       setState(() {
-        // CHANGE 2: Access the list of posts from the '.posts' property
         _posts.addAll(apiResponse.data!.posts);
         _currentPage++;
-
-        // CHANGE 3: Use the 'isLastPage' boolean from the API for more reliable pagination logic
         if (apiResponse.data!.isLastPage) {
           _hasMore = false;
         }
-        
         _isLoading = false;
       });
     } else if (apiResponse.status == HttpStatus.UNAUTHORIZED.name) {
@@ -110,31 +102,34 @@ Future<void> _loadCurrentUserData() async {
         _isLoading = false;
         _hasMore = false;
       });
-      await _showInfoDialog(context, apiResponse.message, title: "Authentication Required", isError: true);
-      _logout();
+      if (mounted) {
+        await _showInfoDialog(context, apiResponse.message, title: tr(context, 'auth_required'), isError: true); // <-- Changed
+        _logout();
+      }
     } else {
       setState(() {
         _isLoading = false;
         _hasMore = false;
       });
-      await _showInfoDialog(context, apiResponse.message, title: "Error Fetching Posts", isError: true);
+      if (mounted) {
+        await _showInfoDialog(context, apiResponse.message, title: tr(context, 'error_fetching_posts'), isError: true); // <-- Changed
+      }
     }
   }
 
   Future<void> _showInfoDialog(BuildContext context, String message, {String title = 'Information', bool isError = false}) async {
+    final dialogTitle = title == 'Information' ? tr(context, 'dialog_info_title') : title;
     return await showDialog(
       context: context,
-      builder: (ctx) => InfoDialog(title: title, message: message, isError: isError),
+      builder: (ctx) => InfoDialog(title: dialogTitle, message: message, isError: isError),
     );
   }
 
   Future<void> _logout() async {
-    await _apiService.deleteToken(); // Delete the token on logout
-    await _apiService.deleteUserProfile(); // Delete the user profile on logout
+    await _apiService.deleteToken();
+    await _apiService.deleteUserProfile();
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -150,19 +145,21 @@ Future<void> _loadCurrentUserData() async {
             context,
             MaterialPageRoute(builder: (_) => AllTopicsPage(userRole: _currentUserRole)),
           );
-          // 👇 when back, refresh subscribed posts
           _refreshForYou();
         },
-        onOpenMyPosts: () {},
-        onOpenAddPostQA: _currentUserRole == 'PATIENT' ? () {} : null,
-        onOpenChat: (_currentUserRole == 'DOCTOR' || _currentUserRole == 'PATIENT')
-                 ? () {
-                  // This is the navigation code
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ChatListScreen()),
-                  );
-                } : null,
+        onOpenMyPosts: () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MyPostsPage()),
+        );
+      },
+        onOpenQARequests: () => _navigateToQATopic(context),
+        onOpenChat: (_currentUserRole == 'DOCTOR' || _currentUserRole == 'PATIENT') ? () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatListScreen()),
+          );
+        } : null,
         onOpenSubscribedTopics: () async {
           await Navigator.push(
             context,
@@ -170,119 +167,163 @@ Future<void> _loadCurrentUserData() async {
           );
           _refreshForYou();
         },
-        // optionally show bullets:
-        // subscribedTopics: const ['Pain Management', 'Mindfulness & Meditation'],
+         onSearchSubmitted: (String query) {
+        Navigator.push( // You can use push or pushReplacement
+          context,
+          MaterialPageRoute(
+            builder: (context) => TopicSearchResultsPage(
+              searchKeyword: query,
+              userRole: _currentUserRole, // Pass the user role
+            ),
+          ),
+        );
+      },
       ),
       content: _buildForYouContent(context),
     );
   }
 
-Widget _buildForYouContent(BuildContext context) {
-  return Container(
-    color: Colors.white,
-    child: CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-                  SliverAppBar(
-                    pinned: true, // Makes the AppBar sticky
-                    toolbarHeight: 120, // Height for title and subtitle
-                    backgroundColor: Colors.white,
-                    flexibleSpace: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          const Text(
-                            'For You',
-                            style: TextStyle(fontSize: 32.0, fontWeight: FontWeight.bold, color: Colors.black87),
-                          ),
-                          const SizedBox(height: 5.0),
-                          Text(
-                            'Recent posts from your subscribed topics',
-                            style: TextStyle(fontSize: 16.0, color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                    ),
+  Widget _buildForYouContent(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            toolbarHeight: 120,
+            backgroundColor: Colors.white,
+            flexibleSpace: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    tr(context, 'for_you_title'), // <-- Changed
+                    style: TextStyle(fontSize: 32.0, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
-                  SliverPadding(
-                    padding: const EdgeInsets.all(20.0),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          // Render posts
-                          if (index < _posts.length) {
-                            final s = _posts[index]; // <-- s is a PostSummary
-                            return PostCard(
-                              authorName: '${s.author.firstName} ${s.author.lastName}',
-                              authorRole: s.author.role,
-                              timeAgo: _timeAgo(s.creationDate),
-                              topicName: s.topicInfo.title,
-                              title: s.title,
-                              content: '',              // PostSummary has no content/excerpt
-                              commentCount: s.commentsCount,
-                              imageUrl: s.imageUrl,
-                              onTap: () {
-                                 Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => PostDetailPage(
-                                      postId: s.id,
-                                      userRole: _currentUserRole, // Doctor/Patient badge, controls edit/delete
-                                      userId: _currentUserId,     // so details page can check author
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          }
-
-                          // The loading indicator / "Load more" / end message
-                          return Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Center(
-                              child: _isLoading
-                                  ? const CircularProgressIndicator()
-                                  : _hasMore
-                                      ? ElevatedButton(
-                                          onPressed: _fetchPosts,
-                                          child: const Text('Load More Posts'),
-                                        )
-                                      : const Text('No more posts to load.'),
-                            ),
-                          );
-                        },
-                        // +1 for the tail loader/button if needed
-                        childCount: _posts.length + (_hasMore ? 1 : 0),
-                      ),
-                    ),
+                  const SizedBox(height: 5.0),
+                  Text(
+                    tr(context, 'for_you_subtitle'), // <-- Changed
+                    style: TextStyle(fontSize: 16.0, color: Colors.grey[600]),
                   ),
                 ],
               ),
-            );
-          }
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.all(20.0),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  if (index < _posts.length) {
+                    final s = _posts[index];
+                    return PostCard(
+                      authorName: '${s.author.firstName} ${s.author.lastName}',
+                      authorRole: s.author.role,
+                      timeAgo: _timeAgo(s.creationDate), // Uses the localized function below
+                      topicName: s.topicInfo.title,
+                      title: s.title,
+                      content: '',
+                      commentCount: s.commentsCount,
+                      imageUrl: s.imageUrl,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PostDetailPage(
+                              postId: s.id,
+                              userRole: _currentUserRole,
+                              userId: _currentUserId,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }
 
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Center(
+                      child: _isLoading
+                          ? const CircularProgressIndicator()
+                          : _hasMore
+                              ? ElevatedButton(
+                                  onPressed: _fetchPosts,
+                                  child: Text(tr(context, 'load_more_posts')), // <-- Changed
+                                )
+                              : Text(tr(context, 'no_more_posts')), // <-- Changed
+                    ),
+                  );
+                },
+                childCount: _posts.length + (_hasMore || _isLoading ? 1 : 0),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    void _refreshForYou() {
-      setState(() {
-        _posts.clear();
-        _currentPage = 0;
-        _hasMore = true;
-      });
-      _fetchPosts();
+  void _refreshForYou() {
+    setState(() {
+      _posts.clear();
+      _currentPage = 0;
+      _hasMore = true;
+    });
+    _fetchPosts();
+  }
+
+  // This function now uses your tr() helper for localization
+  String _timeAgo(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    final prefix = tr(context, 'time_ago_prefix');
+
+    if (diff.inSeconds < 60) return '$prefix${diff.inSeconds}${tr(context, 'time_seconds_suffix')}';
+    if (diff.inMinutes < 60) return '$prefix${diff.inMinutes}${tr(context, 'time_minutes_suffix')}';
+    if (diff.inHours < 24) return '$prefix${diff.inHours}${tr(context, 'time_hours_suffix')}';
+    if (diff.inDays < 7) return '$prefix${diff.inDays}${tr(context, 'time_days_suffix')}';
+
+    return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _navigateToQATopic(BuildContext context) async {
+  // Show a loading indicator
+  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Finding QA Topic...')));
+
+  // Call your existing ApiService function
+  final response = await _apiService.getAllTopics();
+  
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+  if (response.status == HttpStatus.OK.name && response.data != null) {
+    // Assuming the Q&A topic has a known fixed ID
+    const qaTopicId = '68d4f9689432a68dd3b44d95';
+    
+    try {
+      // Find the topic with the matching ID
+      final qaTopic = response.data!.firstWhere((topic) => topic.id == qaTopicId);
+      
+      // Navigate to the standard TopicDetailPage
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TopicDetailPage(
+            topic: qaTopic,
+            userRole: _currentUserRole,
+          ),
+        ),
+      );
+    } catch (e) {
+      // This error happens if the topic ID wasn't found in the list
+      _showInfoDialog(context, 'The Q&A topic could not be found. Please contact support.', title: 'Error', isError: true);
     }
-
+  } else {
+    // Handle API error
+    _showInfoDialog(context, response.message, title: 'Error Fetching Topics', isError: true);
+  }
 }
-
-String _timeAgo(DateTime dt) {
-  final now = DateTime.now();
-  final diff = now.difference(dt);
-
-  if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  if (diff.inHours < 24)   return '${diff.inHours}h ago';
-  if (diff.inDays < 7)     return '${diff.inDays}d ago';
-
-  return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')}';
 }

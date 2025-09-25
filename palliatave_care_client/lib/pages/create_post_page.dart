@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:palliatave_care_client/l10n.dart';
 
 import 'package:palliatave_care_client/models/api_response.dart';
 import 'package:palliatave_care_client/models/post.dart';            // The Post model your API returns
@@ -64,21 +65,22 @@ class _CreatePostPageState extends State<CreatePostPage> {
     if (!mounted) return;
 
     if (resp.status == HttpStatus.OK.name || resp.status == HttpStatus.CREATED.name) {
-      await _showInfoDialog(context, resp.message.isNotEmpty ? resp.message : 'Post created successfully!');
+      await _showInfoDialog(context, resp.message.isNotEmpty ? resp.message : tr(context, 'post_created_successfully'));
       // Pop with `true` so TopicDetailPage knows to refresh
       Navigator.of(context).pop(true);
     } else if (resp.status == HttpStatus.UNAUTHORIZED.name) {
-      await _showInfoDialog(context, 'Please log in to create a post.', title: 'Unauthorized', isError: true);
+      await _showInfoDialog(context, 'Please log in to create a post.', title: tr(context, 'unauthorized_title'), isError: true);
     } else {
-      await _showInfoDialog(context, resp.message, title: 'Create Post Failed', isError: true);
+      await _showInfoDialog(context, resp.message, title: tr(context, 'create_post_failed_title'), isError: true);
     }
   }
 
   Future<void> _showInfoDialog(BuildContext context, String message,
       {String title = 'Information', bool isError = false}) async {
+         final dialogTitle = title == 'Information' ? tr(context, 'dialog_info_title') : title;
     return await showDialog(
       context: context,
-      builder: (ctx) => InfoDialog(title: title, message: message, isError: isError),
+      builder: (ctx) => InfoDialog(title: dialogTitle, message: message, isError: isError),
     );
   }
 
@@ -95,7 +97,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Create Post • ${widget.topicName}'),
+        title:  Text('${tr(context, 'create_post_in_topic_title')}${widget.topicName}'),
         backgroundColor: primary,
         foregroundColor: Colors.white,
       ),
@@ -108,13 +110,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
             children: [
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Post Title *',
-                  hintText: 'e.g., Managing breakthrough pain at home',
+                decoration: InputDecoration(
+                  labelText: tr(context, 'post_title_label'),
+                  hintText: tr(context, 'post_title_hint'),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return 'Please enter a post title';
+                    return tr(context, 'post_title_validator');
                   }
                   return null;
                 },
@@ -123,28 +125,28 @@ class _CreatePostPageState extends State<CreatePostPage> {
               TextFormField(
                 controller: _contentCtrl,
                 maxLines: 6,
-                decoration: const InputDecoration(
-                  labelText: 'Post Content *',
-                  hintText: 'Write helpful, clear guidance for patients...',
+                decoration: InputDecoration(
+                  labelText: tr(context, 'post_content_label'),
+                  hintText:  tr(context, 'post_content_hint'),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return 'Please enter the post content';
+                    return tr(context, 'post_content_validator');
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 24),
 
-              const Text(
-                'Attachments (Optional) — Images / Videos',
+               Text(
+                tr(context, 'attachments_label'),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
 
               // Chips list for picked files
               if (_pickedResources.isEmpty)
-                Text('No files selected', style: TextStyle(color: Colors.grey[600]))
+                Text(tr(context, 'no_files_selected'), style: TextStyle(color: Colors.grey[600]))
               else
                 Wrap(
                   spacing: 8,
@@ -167,7 +169,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ElevatedButton.icon(
                     onPressed: _pickResource,
                     icon: const Icon(Icons.attach_file),
-                    label: const Text('Add Attachment'),
+                    label: Text(tr(context, 'add_attachment_button')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueGrey,
                       foregroundColor: Colors.white,
@@ -192,7 +194,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                           ),
                         )
                       : const Icon(Icons.send),
-                  label: Text(_submitting ? 'Creating Post...' : 'Create Post'),
+                  label: Text(_submitting ? tr(context, 'creating_post_button') :  tr(context, 'create_post_button')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF28A745),
                     foregroundColor: Colors.white,
@@ -204,7 +206,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 ),
               ),
             ],
-          ),
+          ),  
         ),
       ),
     );

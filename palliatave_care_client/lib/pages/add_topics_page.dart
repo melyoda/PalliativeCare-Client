@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:palliatave_care_client/l10n.dart';
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/models/api_response.dart'; // Assuming you move ApiResponse there
 import 'package:palliatave_care_client/widgets/info_dialog.dart';
@@ -35,7 +36,7 @@ class _AddTopicPageState extends State<AddTopicPage> {
   }
 
   Future<void> _addResource() async {
-    final XFile? file = await _picker.pickMedia(); // Allows picking image/video
+    final XFile? file = await _picker.pickMedia();
     if (file != null) {
       setState(() {
         _pickedResources.add(File(file.path));
@@ -61,27 +62,27 @@ class _AddTopicPageState extends State<AddTopicPage> {
       });
 
       if (apiResponse.status == HttpStatus.CREATED.name) {
-        await _showInfoDialog(context, apiResponse.message, title: "Topic Created Successfully!");
-        Navigator.pop(context); // Go back to All Topics page
+        await _showInfoDialog(context, apiResponse.message, title: tr(context, 'topic_created_success')); // <-- Changed
+        Navigator.pop(context);
       } else {
-        await _showInfoDialog(context, apiResponse.message, title: "Topic Creation Failed", isError: true);
+        await _showInfoDialog(context, apiResponse.message, title: tr(context, 'topic_creation_failed'), isError: true); // <-- Changed
       }
     }
   }
 
   Future<void> _showInfoDialog(BuildContext context, String message, {String title = 'Information', bool isError = false}) async {
+    final dialogTitle = title == 'Information' ? tr(context, 'dialog_info_title') : title;
     return await showDialog(
       context: context,
-      builder: (ctx) => InfoDialog(title: title, message: message, isError: isError),
+      builder: (ctx) => InfoDialog(title: dialogTitle, message: message, isError: isError),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add New Topic'),
+        title: Text(tr(context, 'add_new_topic_title')), // <-- Changed
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -94,10 +95,13 @@ class _AddTopicPageState extends State<AddTopicPage> {
             children: [
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Topic Title *', hintText: 'e.g., Pain Management Techniques'),
+                decoration: InputDecoration(
+                  labelText: tr(context, 'topic_title_label'), // <-- Changed
+                  hintText: tr(context, 'topic_title_hint'), // <-- Changed
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a topic title';
+                    return tr(context, 'topic_title_validator'); // <-- Changed
                   }
                   return null;
                 },
@@ -105,17 +109,23 @@ class _AddTopicPageState extends State<AddTopicPage> {
               const SizedBox(height: 20),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Topic Description *', hintText: 'Provide a brief description of the topic'),
+                decoration: InputDecoration(
+                  labelText: tr(context, 'topic_description_label'), // <-- Changed
+                  hintText: tr(context, 'topic_description_hint'), // <-- Changed
+                ),
                 maxLines: 3,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a topic description';
+                    return tr(context, 'topic_description_validator'); // <-- Changed
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 20),
-              const Text('Topic Logo (Optional):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+              Text(
+                tr(context, 'topic_logo_label'), // <-- Changed
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
               const SizedBox(height: 10),
               _pickedLogo != null
                   ? Image.file(_pickedLogo!, height: 100, width: 100, fit: BoxFit.cover)
@@ -129,32 +139,37 @@ class _AddTopicPageState extends State<AddTopicPage> {
               ElevatedButton.icon(
                 onPressed: _pickLogo,
                 icon: const Icon(Icons.image),
-                label: const Text('Pick Logo'),
+                label: Text(tr(context, 'pick_logo_button')), // <-- Changed
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueGrey,
                   foregroundColor: Colors.white,
                 ),
               ),
               const SizedBox(height: 30),
-              const Text('Additional Resources (Optional - Images/Videos):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+              Text(
+                tr(context, 'additional_resources_label'), // <-- Changed
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: _pickedResources.map((file) => Chip(
-                  label: Text(file.path.split('/').last),
-                  onDeleted: () {
-                    setState(() {
-                      _pickedResources.remove(file);
-                    });
-                  },
-                )).toList(),
+                children: _pickedResources
+                    .map((file) => Chip(
+                          label: Text(file.path.split('/').last),
+                          onDeleted: () {
+                            setState(() {
+                              _pickedResources.remove(file);
+                            });
+                          },
+                        ))
+                    .toList(),
               ),
               const SizedBox(height: 10),
               ElevatedButton.icon(
                 onPressed: _addResource,
                 icon: const Icon(Icons.attach_file),
-                label: const Text('Add Resource'),
+                label: Text(tr(context, 'add_resource_button')), // <-- Changed
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueGrey,
                   foregroundColor: Colors.white,
@@ -165,8 +180,10 @@ class _AddTopicPageState extends State<AddTopicPage> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isCreatingTopic ? null : _createTopic,
-                  icon: _isCreatingTopic ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.save),
-                  label: Text(_isCreatingTopic ? 'Creating Topic...' : 'Create Topic'),
+                  icon: _isCreatingTopic
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.save),
+                  label: Text(_isCreatingTopic ? tr(context, 'creating_topic_button') : tr(context, 'create_topic_button')), // <-- Changed
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF28A745), // Green for create
                     foregroundColor: Colors.white,

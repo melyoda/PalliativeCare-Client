@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:palliatave_care_client/l10n.dart';
 
-enum SidebarSection { forYou, allTopics, myPosts, addPostQA, chat }
+enum SidebarSection { forYou, allTopics, myPosts, addPostQA, chat, qaRequests } // Added qaRequests
 
-class AppSidebar extends StatelessWidget {
+class AppSidebar extends StatefulWidget  {
   final String currentUserName;
   final String userRole; // "PATIENT" or "DOCTOR"
   final VoidCallback onLogout;
@@ -16,7 +17,7 @@ class AppSidebar extends StatelessWidget {
   final VoidCallback? onOpenAddPostQA; // PATIENT only
   final VoidCallback? onOpenChat;      // DOCTOR only
   final VoidCallback onOpenSubscribedTopics; // NEW: “View all subscribed topics →”
-
+  final VoidCallback? onOpenQARequests;
   // Optional: search + topics list
   final ValueChanged<String>? onSearchSubmitted;
   final List<String> subscribedTopics; // NEW: bullets under the heading
@@ -35,7 +36,31 @@ class AppSidebar extends StatelessWidget {
     this.onOpenChat,
     this.onSearchSubmitted,
     this.subscribedTopics = const [],
+    this.onOpenQARequests,
   });
+
+  @override
+  State<AppSidebar> createState() => _AppSidebarState();
+}
+
+  class _AppSidebarState extends State<AppSidebar> {
+    // ✅ 2. Add a TextEditingController
+    final _searchController = TextEditingController();
+
+    // ✅ 3. Add the dispose method to prevent memory leaks
+    @override
+    void dispose() {
+      _searchController.dispose();
+      super.dispose();
+    }
+
+    // ✅ 4. Create a helper function to trigger the search
+    void _triggerSearch() {
+      // Only trigger if the callback exists and text is not empty
+      if (widget.onSearchSubmitted != null && _searchController.text.trim().isNotEmpty) {
+        widget.onSearchSubmitted!(_searchController.text.trim());
+      }
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +80,7 @@ class AppSidebar extends StatelessWidget {
                           color: Theme.of(context).primaryColor, size: 30.0),
                       const SizedBox(width: 8.0),
                       Text(
-                        'PalliativeCare',
+                        tr(context, 'app_title'),
                         style: TextStyle(
                           fontSize: 24.0,
                           fontWeight: FontWeight.bold,
@@ -67,9 +92,14 @@ class AppSidebar extends StatelessWidget {
                   const SizedBox(height: 30.0),
 
                   TextFormField(
+                    controller: _searchController, // Link the controller
                     decoration: InputDecoration(
-                      labelText: 'Search topics...',
-                      prefixIcon: const Icon(Icons.search),
+                      labelText: tr(context, 'search_topics_hint'),
+                      // Use a clickable suffixIcon instead of prefixIcon
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.search),
+                        onPressed: _triggerSearch, // Call search on tap
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
                         borderSide: BorderSide.none,
@@ -77,46 +107,61 @@ class AppSidebar extends StatelessWidget {
                       filled: true,
                       fillColor: Colors.grey[200],
                     ),
-                    onFieldSubmitted: onSearchSubmitted,
+                    onFieldSubmitted: (value) => _triggerSearch(), // Call search on submit
                   ),
                   const SizedBox(height: 30.0),
 
                   _SidebarNavItem(
                     icon: Icons.star_border,
-                    title: 'For You',
-                    isSelected: selected == SidebarSection.forYou,
-                    onTap: onOpenForYou,
+                     title: tr(context, 'for_you_title'),
+                    isSelected: widget.selected == SidebarSection.forYou,
+                    onTap:  widget.onOpenForYou,
                   ),
                   _SidebarNavItem(
                     icon: Icons.grid_view,
-                    title: 'All Topics',
-                    isSelected: selected == SidebarSection.allTopics,
-                    onTap: onOpenAllTopics,
+                    title: tr(context, 'all_topics_title'),
+                    isSelected: widget.selected == SidebarSection.allTopics,
+                    onTap: widget.onOpenAllTopics,
                   ),
-                  _SidebarNavItem(
-                    icon: Icons.my_library_books,
-                    title: 'My Posts',
-                    isSelected: selected == SidebarSection.myPosts,
-                    onTap: onOpenMyPosts,
-                  ),
-                  if (userRole == 'PATIENT' && onOpenAddPostQA != null)
+                  if (widget.userRole == 'PATIENT')
                     _SidebarNavItem(
-                      icon: Icons.post_add,
-                      title: 'Add Post to QA',
-                      isSelected: selected == SidebarSection.addPostQA,
-                      onTap: onOpenAddPostQA!,
+                      icon: Icons.my_library_books,
+                      title: tr(context, 'my_posts_title'), // Using the page title key
+                      isSelected: widget.selected == SidebarSection.myPosts,
+                      onTap: widget.onOpenMyPosts,
+                  ),
+
+                   if (widget.userRole == 'DOCTOR' && widget.onOpenQARequests != null)
+                    _SidebarNavItem(
+                      icon: Icons.question_answer_outlined,
+                      title: tr(context, 'sidebar_qa_requests'),
+                      isSelected: widget.selected == SidebarSection.qaRequests,
+                      onTap: widget.onOpenQARequests!,
                     ),
-                  if ((userRole == 'DOCTOR' || userRole == 'PATIENT') && onOpenChat != null)
+                  // _SidebarNavItem(
+                  //   icon: Icons.my_library_books,
+                  //    title: tr(context, 'sidebar_my_posts'),
+                  //   isSelected: widget.selected == SidebarSection.myPosts,
+                  //   onTap: widget.onOpenMyPosts,
+                  // ),
+                  // if (widget.userRole == 'PATIENT' && widget.onOpenAddPostQA != null)
+                  //   _SidebarNavItem(
+                  //     icon: Icons.post_add,
+                  //      title: tr(context, 'sidebar_add_post_qa'),
+                  //     isSelected: widget.selected == SidebarSection.addPostQA,
+                  //     onTap: widget.onOpenAddPostQA!,
+                  //   ),
+                  if ((widget.userRole == 'DOCTOR' || widget.userRole == 'PATIENT') && widget.onOpenChat != null)
                   _SidebarNavItem(
                     icon: Icons.chat_bubble_outline,
-                    title: 'Chat',
-                    isSelected: selected == SidebarSection.chat,
-                    onTap: onOpenChat!,
+                    title: tr(context, 'sidebar_chat'),
+                      isSelected: widget.selected == SidebarSection.chat,
+                      onTap: widget.onOpenChat!,
                   ),
 
                     const SizedBox(height: 30.0),
-                    const Text(
-                      'Subscribed Topics',
+                    Text(
+                      tr(context, 'sidebar_subscribed_topics'),
                       style: TextStyle(
                         fontSize: 16.0,
                         fontWeight: FontWeight.bold,
@@ -126,16 +171,16 @@ class AppSidebar extends StatelessWidget {
                     const SizedBox(height: 10.0),
 
                     // Bulleted list (optional)
-                    ...subscribedTopics.map((t) => _SidebarTopicItem(
+                    ...widget.subscribedTopics.map((t) => _SidebarTopicItem(
                       topicName: t,
                       onTap: () {}, // hook up if you want per-topic navigation
                     )),
 
                     // “View all subscribed topics →”
                     TextButton(
-                      onPressed: onOpenSubscribedTopics,
+                      onPressed: widget.onOpenSubscribedTopics,
                       child: Text(
-                        'View all subscribed topics →',
+                         tr(context, 'sidebar_view_all_subscribed'),
                         style: TextStyle(
                           color: Theme.of(context).primaryColor,
                           fontSize: 14,
@@ -158,7 +203,7 @@ class AppSidebar extends StatelessWidget {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     spreadRadius: 2,
                     blurRadius: 5,
                     offset: const Offset(0, -3),
@@ -171,7 +216,7 @@ class AppSidebar extends StatelessWidget {
                   Divider(color: Colors.grey[300], height: 1),
                   const SizedBox(height: 10),
                   Text(
-                    currentUserName,
+                    widget.currentUserName,
                     style: const TextStyle(
                       fontSize: 16.0,
                       fontWeight: FontWeight.bold,
@@ -182,7 +227,7 @@ class AppSidebar extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: onLogout,
+                      onPressed: widget.onLogout,
                       icon: const Icon(Icons.logout, size: 20),
                       label: const Text('Logout'),
                       style: ElevatedButton.styleFrom(

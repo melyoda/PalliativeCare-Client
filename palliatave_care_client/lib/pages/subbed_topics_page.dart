@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:palliatave_care_client/l10n.dart'; 
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/models/api_response.dart'; // Assuming you move ApiResponse there
 import 'package:palliatave_care_client/widgets/info_dialog.dart';
@@ -48,7 +48,7 @@ class _SubscribedTopicsPageState extends State<SubscribedTopicsPage> {
       setState(() {
         _isLoading = false;
       });
-      await _showInfoDialog(context, apiResponse.message, title: "Error Fetching Subscribed Topics", isError: true);
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'error_fetching_subscribed_topics'), isError: true);
       _subscribedTopics = []; // Ensure it's an empty list to prevent further errors
     }
   }
@@ -56,17 +56,19 @@ class _SubscribedTopicsPageState extends State<SubscribedTopicsPage> {
   Future<void> _handleUnsubscribe(String topicId) async {
     final ApiResponse<String> apiResponse = await _apiService.unregisterFromTopic(topicId);
     if (apiResponse.status == HttpStatus.OK.name) {
-      await _showInfoDialog(context, apiResponse.message, title: "Unsubscribed Successfully!");
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'unsubscribed_successfully'));
       _fetchSubscribedTopics(); // Refresh data
     } else {
-      await _showInfoDialog(context, apiResponse.message, title: "Unsubscription Failed", isError: true);
+      await _showInfoDialog(context, apiResponse.message, title: tr(context, 'unsubscription_failed'), isError: true);
     }
   }
 
-  Future<void> _showInfoDialog(BuildContext context, String message, {String title = 'Information', bool isError = false}) async {
+  Future<void> _showInfoDialog(BuildContext context, String message, 
+  {String title = 'Information', bool isError = false}) async {
+    final dialogTitle = title == 'Information' ? tr(context, 'dialog_info_title') : title;
     return await showDialog(
       context: context,
-      builder: (ctx) => InfoDialog(title: title, message: message, isError: isError),
+      builder: (ctx) => InfoDialog(title: dialogTitle, message: message, isError: isError),
     );
   }
 
@@ -74,7 +76,7 @@ class _SubscribedTopicsPageState extends State<SubscribedTopicsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Subscribed Topics'),
+        title: Text(tr(context, 'my_subscribed_topics_title')),
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -83,7 +85,7 @@ class _SubscribedTopicsPageState extends State<SubscribedTopicsPage> {
           : _subscribedTopics.isEmpty
               ? Center(
                   child: Text(
-                    'You are not subscribed to any topics yet.\nExplore "All Topics" to find some!',
+                    tr(context, 'no_subscribed_topics_message'),
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),

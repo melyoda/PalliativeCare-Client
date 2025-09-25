@@ -31,12 +31,14 @@ class ChatMessage {
   final String content;
   final String sender;
   final String roomId;
+  final String type;
   // You might also want to add timestamp and message type if needed
 
   ChatMessage({
     required this.content,
     required this.sender,
     required this.roomId,
+    required this.type,
   });
 
   // Create a ChatMessage object from JSON received from the WebSocket
@@ -45,6 +47,7 @@ class ChatMessage {
       content: json['content'],
       sender: json['sender'],
       roomId: json['roomId'],
+      type: json['type'],
     );
   }
 

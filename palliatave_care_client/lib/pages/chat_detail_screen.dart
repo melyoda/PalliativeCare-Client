@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:stomp_dart_client/stomp.dart';
-import 'package:stomp_dart_client/stomp_config.dart';
-import 'package:stomp_dart_client/stomp_frame.dart';
+import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'dart:convert';
 import '../models/chat_models.dart'; // Adjust import path
+import '../services/api_service.dart'; // We need this to get the token
 
 class ChatDetailScreen extends StatefulWidget {
   final String roomId;
   final String otherParticipantName;
-
-  // We need to know who the current user is to align messages left/right
-  final String currentUserId; 
+  final String currentUserId;
 
   const ChatDetailScreen({
     super.key,
@@ -26,54 +23,98 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final List<ChatMessage> _messages = [];
+  final ScrollController _scrollController = ScrollController(); // For auto-scrolling
   StompClient? stompClient;
-
+  final ApiService apiService = ApiService(); // Create an instance of your service
+ bool _isLoading = true;
   @override
   void initState() {
     super.initState();
-    _connectAndSubscribe();
+    // _connectAndSubscribe();
+    _loadHistoryAndConnect();
   }
 
-  void _connectAndSubscribe() {
-    // NOTE: For WebSocket, use 'ws://' not 'http://'
-    // For your Render deployment, use 'wss://' for secure websockets
-    final String websocketUrl = "wss://palliativecare-k6g2.onrender.com/ws";
-    // final String websocketUrl = "ws://10.0.2.2:8080/ws"; // For Android emulator
-
-    stompClient = StompClient(
-      config: StompConfig(
-        url: websocketUrl,
-        onConnect: _onConnectCallback,
-        onWebSocketError: (dynamic error) => print(error.toString()),
-        stompConnectHeaders: {'Authorization': 'Bearer your_jwt_token_here'}, // Add auth if needed
-        webSocketConnectHeaders: {'Authorization': 'Bearer your_jwt_token_here'}, // Add auth if needed
-      ),
-    );
-
-    stompClient!.activate();
+Future<void> _connectAndSubscribe() async {
+  final String? token = await apiService.getToken();
+  if (token == null) {
+    print("--- FATAL ERROR: No token found. Cannot connect to WebSocket. ---");
+    return;
   }
+  
+  // 1. Double-check this URL. No typos, no trailing slashes, no '#'
+  const String websocketUrl = "wss://palliativecare-k6g2.onrender.com/ws";
+  print("--- Attempting to connect to: $websocketUrl ---"); // Add a log to be sure
+
+  stompClient = StompClient(
+    config: StompConfig(
+      url: websocketUrl,
+      onConnect: _onConnectCallback,
+      onWebSocketError: (dynamic error) => print('--- WEBSOCKET ERROR: ${error.toString()} ---'),
+      
+      // 2. This header is for the initial HTTP handshake. It's the most important one for this error.
+      webSocketConnectHeaders: {
+        'Authorization': 'Bearer $token',
+      },
+      // 3. This header is for the STOMP protocol frame after the WebSocket is open.
+      stompConnectHeaders: {
+        'Authorization': 'Bearer $token',
+      },
+    ),
+  );
+
+  stompClient!.activate();
+}
+
+ Future<void> _loadHistoryAndConnect() async {
+    // Start loading
+    setState(() => _isLoading = true);
+
+    try {
+      // Fetch history from the API
+      final history = await apiService.getChatHistory(widget.roomId);
+      setState(() {
+        _messages.addAll(history);
+      });
+      _scrollToBottom(); // Scroll down after loading history
+    } catch (e) {
+      print("--- Error loading history: $e ---");
+      // Optionally show a snackbar with the error
+    } finally {
+      // Stop loading and connect to WebSocket
+      setState(() => _isLoading = false);
+      _connectAndSubscribe();
+    }
+  }
+
 
   void _onConnectCallback(StompFrame connectFrame) {
-    // Subscription to the specific room topic
+    print("--- WebSocket Connected ---");
     stompClient!.subscribe(
       destination: '/topic/room/${widget.roomId}',
       callback: (frame) {
         if (frame.body != null) {
-          final Map<String, dynamic> result = json.decode(frame.body!);
-          final newMessage = ChatMessage.fromJson(result);
-          
-          setState(() {
-            _messages.add(newMessage);
-          });
+          try {
+            final result = json.decode(frame.body!);
+            final newMessage = ChatMessage.fromJson(result);
+            if (mounted) {
+              setState(() {
+                _messages.add(newMessage);
+              });
+              // Auto-scroll to the bottom when a new message arrives
+              _scrollToBottom();
+            }
+          } catch (e) {
+            print("--- Error parsing message body: ${e.toString()} ---");
+          }
         }
       },
     );
     
-    // Send a JOIN message when connecting
     final joinMessage = ChatMessage(
       content: '${widget.currentUserId} has joined!',
       sender: widget.currentUserId,
       roomId: widget.roomId,
+      type: 'JOIN',
     );
     stompClient!.send(
       destination: '/app/chat.addUser',
@@ -83,11 +124,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   void _sendMessage() {
     final messageText = _messageController.text.trim();
-    if (messageText.isNotEmpty && stompClient != null && stompClient!.connected) {
+    if (messageText.isNotEmpty && stompClient?.connected == true) {
       final chatMessage = ChatMessage(
         content: messageText,
         sender: widget.currentUserId,
         roomId: widget.roomId,
+        type: 'CHAT',
       );
 
       stompClient!.send(
@@ -95,13 +137,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         body: json.encode(chatMessage.toJson()),
       );
       _messageController.clear();
+      _scrollToBottom();
+    } else {
+      print("--- Cannot send message: Not connected or message is empty. ---");
     }
+  }
+
+  void _scrollToBottom() {
+    // Add a small delay to allow the ListView to rebuild before scrolling
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
+    print("--- Deactivating WebSocket client ---");
     stompClient?.deactivate();
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -114,16 +174,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                // Align message bubble based on the sender
-                final isMyMessage = message.sender == widget.currentUserId;
-                return _MessageBubble(message: message, isMyMessage: isMyMessage);
-              },
+              // The child is now a conditional expression based on the _isLoading flag
+              child: _isLoading
+                  // If _isLoading is true, show a centered loading spinner
+                  ? const Center(child: CircularProgressIndicator())
+                  // If _isLoading is false, show your original ListView
+                  : ListView.builder(
+                      controller: _scrollController,
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final message = _messages[index];
+                        final isMyMessage = message.sender == widget.currentUserId;
+                        return _MessageBubble(message: message, isMyMessage: isMyMessage);
+                      },
+                    ),
             ),
-          ),
           _MessageInputField(
             controller: _messageController,
             onSend: _sendMessage,
@@ -134,7 +199,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 }
 
-// Widget for the text input field
 class _MessageInputField extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
@@ -145,35 +209,37 @@ class _MessageInputField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(8.0),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[200],
                 ),
-                filled: true,
-                fillColor: Colors.grey[200],
+                onSubmitted: (_) => onSend(),
               ),
-              onSubmitted: (_) => onSend(),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.send, color: Theme.of(context).primaryColor),
-            onPressed: onSend,
-          ),
-        ],
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(Icons.send, color: Theme.of(context).primaryColor),
+              onPressed: onSend,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// Widget for an individual message bubble
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMyMessage;
@@ -182,12 +248,15 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Show JOIN/LEAVE messages in the center
-    if (message.content.contains('has joined!')) { // Simple check for join message
+    // A simple check to see if the message is a system notification (like JOIN/LEAVE)
+    if (message.type == 'JOIN' || message.type == 'LEAVE') {
         return Center(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(message.content, style: const TextStyle(color: Colors.grey)),
+            child: Text(
+              message.content,
+              style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)
+            ),
           ),
         );
     }
@@ -203,7 +272,7 @@ class _MessageBubble extends StatelessWidget {
         ),
         child: Text(
           message.content,
-          style: TextStyle(color: isMyMessage ? Colors.white : Colors.black),
+          style: TextStyle(color: isMyMessage ? Colors.white : Colors.black87),
         ),
       ),
     );

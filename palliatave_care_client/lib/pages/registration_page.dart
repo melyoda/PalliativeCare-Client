@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:palliatave_care_client/l10n.dart';
 
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/models/api_response.dart'; 
@@ -73,38 +74,37 @@ class _RegistrationPageState extends State<RegistrationPage> {
   Future<void> _registerUser() async {
     if (_formKey.currentState!.validate()) {
       if (_passwordController.text != _confirmPasswordController.text) {
-        await _showInfoDialog(context, "Passwords do not match.", isError: true); // AWAIT here
+        await _showInfoDialog(context, tr(context, 'passwords_do_not_match'), isError: true);
         return;
       }
 
-      // Prepare data for the API call with correct backend field names
       final ApiResponse<LoginResponse> apiResponse = await _apiService.registerUser(
         firstName: _firstNameController.text,
         middleName: _middleNameController.text,
-        lastName: _familyNameController.text, // Mapped to 'lastName'
+        lastName: _familyNameController.text,
         birthDate: _selectedDate!.toIso8601String(),
-        mobile: _mobileNoController.text, // Mapped to 'mobile'
+        mobile: _mobileNoController.text,
         email: _emailController.text,
         address: _addressController.text,
         password: _passwordController.text,
-        confirmPassword: _confirmPasswordController.text, // Now included
-        role: _selectedUserType.name.toUpperCase(), // Mapped to 'role'
+        confirmPassword: _confirmPasswordController.text,
+        role: _selectedUserType.name.toUpperCase(),
       );
 
-      // --- FIX IS HERE ---
-      if (apiResponse.status == HttpStatus.CREATED.name) { // Compare with the string name "CREATED"
-        await _showInfoDialog(context, apiResponse.message, title: "Registration Successful!"); // AWAIT here
+      if (apiResponse.status == HttpStatus.CREATED.name) {
+        await _showInfoDialog(context, apiResponse.message, title: tr(context, 'registration_success_title'));
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
       } else {
-        await _showInfoDialog(context, apiResponse.message, title: "Registration Failed", isError: true); // AWAIT here
+        await _showInfoDialog(context, apiResponse.message, title: tr(context, 'registration_failed_title'), isError: true);
       }
     }
   }
 
-  Future<void> _showInfoDialog(BuildContext context, String message, {String title = 'Information', bool isError = false}) async { // Changed to async and returns Future
+  Future<void> _showInfoDialog(BuildContext context, String message, {String title = 'Information', bool isError = false}) async {
+    final dialogTitle = title == 'Information' ? tr(context, 'dialog_info_title') : title;
     return await showDialog(
       context: context,
-      builder: (ctx) => InfoDialog(title: title, message: message, isError: isError),
+      builder: (ctx) => InfoDialog(title: dialogTitle, message: message, isError: isError),
     );
   }
 
@@ -125,8 +125,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 children: [
                   const Icon(Icons.favorite_border, color: Colors.white, size: 48.0),
                   const SizedBox(height: 10.0),
-                  const Text(
-                    'CareConnect',
+                  Text(
+                    tr(context, 'app_title'),
                     style: TextStyle(
                       fontSize: 32.0,
                       fontWeight: FontWeight.bold,
@@ -134,19 +134,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
                     ),
                   ),
                   const SizedBox(height: 10.0),
-                  const Text(
-                    'Join our caring community',
+                  Text(
+                    tr(context, 'registration_tagline'), // <-- Changed
                     style: TextStyle(
                       fontSize: 18.0,
                       color: Colors.white70,
                     ),
                   ),
                   const SizedBox(height: 40.0),
-                  _buildFeatureItem(Icons.group_add, 'For Patients', 'Access personalized care and connect with your healthcare team'),
+                  _buildFeatureItem(
+                      Icons.group_add, tr(context, 'feature_patients_title'), tr(context, 'feature_patients_desc')), // <-- Changed
                   const SizedBox(height: 20.0),
-                  _buildFeatureItem(Icons.medical_services, 'For Healthcare Providers', 'Deliver compassionate care with advanced tools and insights'),
-                  const SizedBox(height: 20.0),
-                  _buildFeatureItem(Icons.security, 'HIPAA Compliant', 'Your privacy and security are our top priorities'),
+                  _buildFeatureItem(Icons.medical_services, tr(context, 'feature_providers_title'),
+                      tr(context, 'feature_providers_desc')), // <-- Changed
                 ],
               ),
             ),
@@ -165,28 +165,24 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Create Your Account',
+                        Text(
+                          tr(context, 'create_your_account'), // <-- Changed
                           style: TextStyle(fontSize: 32.0, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 10.0),
-                        const Text(
-                          'Join our palliative care community today',
+                        Text(
+                          tr(context, 'registration_prompt'), // <-- Changed
                           style: TextStyle(fontSize: 16.0, color: Colors.grey),
                         ),
                         const SizedBox(height: 30.0),
-                        const Text(
-                          'I am registering as a:',
+                        Text(
+                          tr(context, 'registering_as'), // <-- Changed
                           style: TextStyle(fontSize: 16.0, color: Colors.black87, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 10.0),
-                        // Using LayoutBuilder to dynamically size ToggleButtons
                         LayoutBuilder(
                           builder: (BuildContext context, BoxConstraints constraints) {
-                            final double totalAvailableWidth = constraints.maxWidth;
-                            // Calculate button width: half of available width minus some spacing
-                            // The 16.0 is an approximate for ToggleButtons internal padding/spacing
-                            final double buttonWidth = (totalAvailableWidth / 2) - 16.0; 
+                            final double buttonWidth = (constraints.maxWidth / 2) - 16.0;
 
                             return Center(
                               child: ToggleButtons(
@@ -200,24 +196,20 @@ class _RegistrationPageState extends State<RegistrationPage> {
                                   });
                                 },
                                 borderRadius: BorderRadius.circular(8.0),
-                                borderColor: Colors.grey[300],
-                                selectedBorderColor: Theme.of(context).primaryColor,
-                                fillColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                                selectedColor: Theme.of(context).primaryColor,
-                                color: Colors.grey[600],
-                                // Apply calculated constraints for each button
                                 constraints: BoxConstraints.tightFor(width: buttonWidth, height: 60),
-                                children: const <Widget>[
-                                  UserTypeToggleButtonContent(icon: Icons.personal_injury, label: 'Patient'), // Changed from _UserTypeToggleButtonContent
-                                  UserTypeToggleButtonContent(icon: Icons.medical_information, label: 'Healthcare Provider'), // Changed from _UserTypeToggleButtonContent
+                                children: <Widget>[
+                                  UserTypeToggleButtonContent(
+                                      icon: Icons.personal_injury, label: tr(context, 'user_type_patient')), // <-- Changed
+                                  UserTypeToggleButtonContent(
+                                      icon: Icons.medical_information, label: tr(context, 'user_type_provider')), // <-- Changed
                                 ],
                               ),
                             );
                           },
                         ),
                         const SizedBox(height: 30.0),
-                        const Text(
-                          'Personal Information',
+                        Text(
+                          tr(context, 'personal_information'), // <-- Changed
                           style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 15.0),
@@ -226,10 +218,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
                             Expanded(
                               child: TextFormField(
                                 controller: _firstNameController,
-                                decoration: const InputDecoration(labelText: 'First Name *', hintText: 'First name'),
+                                decoration: InputDecoration(
+                                    labelText: tr(context, 'first_name_label'), hintText: tr(context, 'first_name_hint')), // <-- Changed
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Please enter your first name';
+                                    return tr(context, 'first_name_validator'); // <-- Changed
                                   }
                                   return null;
                                 },
@@ -239,17 +232,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
                             Expanded(
                               child: TextFormField(
                                 controller: _middleNameController,
-                                decoration: const InputDecoration(labelText: 'Middle Name', hintText: 'Middle name'),
+                                decoration: InputDecoration(
+                                    labelText: tr(context, 'middle_name_label'), hintText: tr(context, 'middle_name_hint')), // <-- Changed
                               ),
                             ),
                             const SizedBox(width: 15.0),
                             Expanded(
                               child: TextFormField(
                                 controller: _familyNameController,
-                                decoration: const InputDecoration(labelText: 'Family Name *', hintText: 'Family name'),
+                                decoration: InputDecoration(
+                                    labelText: tr(context, 'family_name_label'), hintText: tr(context, 'family_name_hint')), // <-- Changed
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Please enter your family name';
+                                    return tr(context, 'family_name_validator'); // <-- Changed
                                   }
                                   return null;
                                 },
@@ -261,15 +256,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         TextFormField(
                           controller: _birthDateController,
                           readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Birth Date *',
-                            hintText: 'dd/mm/yyyy',
+                          decoration: InputDecoration(
+                            labelText: tr(context, 'birth_date_label'), // <-- Changed
+                            hintText: tr(context, 'birth_date_hint'), // <-- Changed
                             suffixIcon: Icon(Icons.calendar_today_outlined),
                           ),
                           onTap: () => _selectDate(context),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please select your birth date';
+                              return tr(context, 'birth_date_validator'); // <-- Changed
                             }
                             return null;
                           },
@@ -277,17 +272,18 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         const SizedBox(height: 20.0),
                         TextFormField(
                           controller: _addressController,
-                          decoration: const InputDecoration(labelText: 'Address *', hintText: 'Enter your full address'),
+                          decoration: InputDecoration(
+                              labelText: tr(context, 'address_label'), hintText: tr(context, 'address_hint')), // <-- Changed
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your address';
+                              return tr(context, 'address_validator'); // <-- Changed
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 30.0),
-                        const Text(
-                          'Contact Information',
+                        Text(
+                          tr(context, 'contact_information'), // <-- Changed
                           style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 15.0),
@@ -297,13 +293,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
                               child: TextFormField(
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
-                                decoration: const InputDecoration(labelText: 'Email Address *', hintText: 'your.email@example.com'),
+                                decoration: InputDecoration(
+                                    labelText: tr(context, 'email_address_label'), hintText: 'your.email@example.com'), // <-- Changed
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Please enter your email';
+                                    return tr(context, 'email_validator_empty'); // <-- Changed
                                   }
                                   if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                                    return 'Please enter a valid email address';
+                                    return tr(context, 'email_validator_invalid'); // <-- Changed
                                   }
                                   return null;
                                 },
@@ -314,10 +311,12 @@ class _RegistrationPageState extends State<RegistrationPage> {
                               child: TextFormField(
                                 controller: _mobileNoController,
                                 keyboardType: TextInputType.phone,
-                                decoration: const InputDecoration(labelText: 'Mobile Number *', hintText: 'Your mobile number'),
+                                decoration: InputDecoration(
+                                    labelText: tr(context, 'mobile_number_label'),
+                                    hintText: tr(context, 'mobile_number_hint')), // <-- Changed
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Please enter your mobile number';
+                                    return tr(context, 'mobile_number_validator'); // <-- Changed
                                   }
                                   return null;
                                 },
@@ -326,8 +325,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
                           ],
                         ),
                         const SizedBox(height: 30.0),
-                        const Text(
-                          'Security',
+                        Text(
+                          tr(context, 'security_section_title'), // <-- Changed
                           style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 15.0),
@@ -337,13 +336,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
                               child: TextFormField(
                                 controller: _passwordController,
                                 obscureText: true,
-                                decoration: const InputDecoration(labelText: 'Password *', hintText: 'Create a strong password'),
+                                decoration: InputDecoration(
+                                    labelText: tr(context, 'create_password_label'),
+                                    hintText: tr(context, 'create_password_hint')), // <-- Changed
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Please enter a password';
+                                    return tr(context, 'password_validator_enter'); // <-- Changed
                                   }
                                   if (value.length < 6) {
-                                    return 'Password must be at least 6 characters long';
+                                    return tr(context, 'password_validator_length'); // <-- Changed
                                   }
                                   return null;
                                 },
@@ -354,13 +355,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
                               child: TextFormField(
                                 controller: _confirmPasswordController,
                                 obscureText: true,
-                                decoration: const InputDecoration(labelText: 'Confirm Password *', hintText: 'Confirm your password'),
+                                decoration: InputDecoration(
+                                    labelText: tr(context, 'confirm_password_label'),
+                                    hintText: tr(context, 'confirm_password_hint')), // <-- Changed
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Please confirm your password';
+                                    return tr(context, 'confirm_password_validator'); // <-- Changed
                                   }
                                   if (value != _passwordController.text) {
-                                    return 'Passwords do not match';
+                                    return tr(context, 'passwords_validator_match'); // <-- Changed
                                   }
                                   return null;
                                 },
@@ -376,22 +379,23 @@ class _RegistrationPageState extends State<RegistrationPage> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF28A745), // A vibrant green
                             ),
-                            child: const Text('Create Account'),
+                            child: Text(tr(context, 'create_account_button')), // <-- Changed
                           ),
                         ),
                         const SizedBox(height: 30.0),
                         Center(
                           child: GestureDetector(
                             onTap: () {
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
+                              Navigator.pushReplacement(
+                                  context, MaterialPageRoute(builder: (context) => const LoginPage()));
                             },
                             child: RichText(
                               text: TextSpan(
-                                text: 'Already have an account? ',
+                                text: tr(context, 'already_have_account'), // <-- Changed
                                 style: TextStyle(color: Colors.grey[700], fontSize: 16.0),
                                 children: [
                                   TextSpan(
-                                    text: 'Sign in here',
+                                    text: tr(context, 'sign_in_here'), // <-- Changed
                                     style: TextStyle(
                                       color: Theme.of(context).primaryColor,
                                       fontWeight: FontWeight.bold,
@@ -445,5 +449,5 @@ class _RegistrationPageState extends State<RegistrationPage> {
         ),
       ],
     );
-    }
   }
+}
