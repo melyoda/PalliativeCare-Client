@@ -1,10 +1,9 @@
-
-// Mock Main Screen - typically in `lib/pages/main_screen.dart`
 import 'package:flutter/material.dart';
 import 'package:palliatave_care_client/l10n.dart';
 import 'package:palliatave_care_client/models/post_summary_page_response.dart';
 import 'package:palliatave_care_client/pages/my_posts_page.dart';
-import 'package:palliatave_care_client/pages/topic_detail_page.dart';
+import 'package:palliatave_care_client/pages/send_notification_page.dart';
+// import 'package:palliatave_care_client/pages/topic_detail_page.dart';
 import 'package:palliatave_care_client/pages/topic_search_results_page.dart';
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/models/api_response.dart'; 
@@ -21,6 +20,9 @@ import '../pages/subbed_topics_page.dart';
 import '../pages/all_topics_page.dart';
 import 'package:palliatave_care_client/widgets/app_sidebar.dart';
 import 'package:palliatave_care_client/pages/chat_list_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:palliatave_care_client/services/notification_service.dart';
+import 'package:palliatave_care_client/util/app_navigator.dart';
 
 class ForYouPage extends StatefulWidget {
   const ForYouPage({super.key});
@@ -126,6 +128,8 @@ class _ForYouPageState extends State<ForYouPage> {
   }
 
   Future<void> _logout() async {
+    Provider.of<NotificationService>(context, listen: false).disconnect();
+
     await _apiService.deleteToken();
     await _apiService.deleteUserProfile();
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
@@ -153,7 +157,7 @@ class _ForYouPageState extends State<ForYouPage> {
           MaterialPageRoute(builder: (context) => const MyPostsPage()),
         );
       },
-        onOpenQARequests: () => _navigateToQATopic(context),
+          onOpenQARequests: () => AppNavigator.navigateToQATopic(context, _currentUserRole),
         onOpenChat: (_currentUserRole == 'DOCTOR' || _currentUserRole == 'PATIENT') ? () {
           Navigator.push(
             context,
@@ -177,6 +181,9 @@ class _ForYouPageState extends State<ForYouPage> {
             ),
           ),
         );
+      },
+      onOpenSendNotification: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const SendNotificationPage()));
       },
       ),
       content: _buildForYouContent(context),
@@ -289,41 +296,41 @@ class _ForYouPageState extends State<ForYouPage> {
     return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _navigateToQATopic(BuildContext context) async {
-  // Show a loading indicator
-  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Finding QA Topic...')));
+//   Future<void> _navigateToQATopic(BuildContext context) async {
+//   // Show a loading indicator
+//   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Finding QA Topic...')));
 
-  // Call your existing ApiService function
-  final response = await _apiService.getAllTopics();
+//   // Call your existing ApiService function
+//   final response = await _apiService.getAllTopics();
   
-  if (!mounted) return;
-  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+//   if (!mounted) return;
+//   ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-  if (response.status == HttpStatus.OK.name && response.data != null) {
-    // Assuming the Q&A topic has a known fixed ID
-    const qaTopicId = '68d4f9689432a68dd3b44d95';
+//   if (response.status == HttpStatus.OK.name && response.data != null) {
+//     // Assuming the Q&A topic has a known fixed ID
+//     const qaTopicId = '68d4f9689432a68dd3b44d95';
     
-    try {
-      // Find the topic with the matching ID
-      final qaTopic = response.data!.firstWhere((topic) => topic.id == qaTopicId);
+//     try {
+//       // Find the topic with the matching ID
+//       final qaTopic = response.data!.firstWhere((topic) => topic.id == qaTopicId);
       
-      // Navigate to the standard TopicDetailPage
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => TopicDetailPage(
-            topic: qaTopic,
-            userRole: _currentUserRole,
-          ),
-        ),
-      );
-    } catch (e) {
-      // This error happens if the topic ID wasn't found in the list
-      _showInfoDialog(context, 'The Q&A topic could not be found. Please contact support.', title: 'Error', isError: true);
-    }
-  } else {
-    // Handle API error
-    _showInfoDialog(context, response.message, title: 'Error Fetching Topics', isError: true);
-  }
-}
+//       // Navigate to the standard TopicDetailPage
+//       Navigator.push(
+//         context,
+//         MaterialPageRoute(
+//           builder: (context) => TopicDetailPage(
+//             topic: qaTopic,
+//             userRole: _currentUserRole,
+//           ),
+//         ),
+//       );
+//     } catch (e) {
+//       // This error happens if the topic ID wasn't found in the list
+//       _showInfoDialog(context, 'The Q&A topic could not be found. Please contact support.', title: 'Error', isError: true);
+//     }
+//   } else {
+//     // Handle API error
+//     _showInfoDialog(context, response.message, title: 'Error Fetching Topics', isError: true);
+//   }
+// }
 }

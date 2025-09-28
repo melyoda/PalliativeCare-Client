@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import '../l10n.dart';
 
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/models/api_response.dart'; 
@@ -8,7 +9,9 @@ import 'package:palliatave_care_client/pages/registration_page.dart';
 import 'package:palliatave_care_client/pages/main_screen.dart';
 import 'package:palliatave_care_client/util/http_status.dart'; 
 import '../models/login_response.dart'; 
-import '../l10n.dart';
+
+import 'package:provider/provider.dart';
+import 'package:palliatave_care_client/services/notification_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -33,6 +36,8 @@ class _LoginPageState extends State<LoginPage> {
       );
       if (apiResponse.status == HttpStatus.OK.name) {
         await _showInfoDialog(context, apiResponse.message, title: tr(context, 'login_success_title'));
+        
+        Provider.of<NotificationService>(context, listen: false).connect();
         // ApiService now handles saving token and user profile internally after parsing LoginResponse
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ForYouPage()));
       } else {
@@ -157,32 +162,32 @@ class _LoginPageState extends State<LoginPage> {
                           },
                         ),
                         const SizedBox(height: 15.0),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: _rememberMe,
-                                  onChanged: (bool? value) {
-                                    setState(() {
-                                      _rememberMe = value ?? false;
-                                    });
-                                  },
-                                  activeColor: Theme.of(context).primaryColor,
-                                ),
-                                Text(tr(context, 'remember_me')), // <-- Changed
-                              ],
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                // TODO: Implement forgot password functionality
-                                print('Forgot Password pressed!');
-                              },
-                              child: Text(tr(context, 'forgot_password')), // <-- Changed
-                            ),
-                          ],
-                        ),
+                         Row(
+                        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        //   children: [
+                        //     Row(
+                        //       children: [
+                        //         Checkbox(
+                        //           value: _rememberMe,
+                        //           onChanged: (bool? value) {
+                        //             setState(() {
+                        //               _rememberMe = value ?? false;
+                        //             });
+                        //           },
+                        //           activeColor: Theme.of(context).primaryColor,
+                        //         ),
+                        //         Text(tr(context, 'remember_me')), // <-- Changed
+                        //       ],
+                        //     ),
+                        //     TextButton(
+                        //       onPressed: () {
+                        //         // TODO: Implement forgot password functionality
+                        //         print('Forgot Password pressed!');
+                        //       },
+                        //       child: Text(tr(context, 'forgot_password')), // <-- Changed
+                        //     ),
+                        //   ],
+                         ),
                         const SizedBox(height: 30.0),
                         SizedBox(
                           width: double.infinity,

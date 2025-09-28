@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:palliatave_care_client/l10n.dart'; 
 import 'package:palliatave_care_client/models/api_response.dart';
 import 'package:palliatave_care_client/models/post_summary.dart';
 // import 'package:palliatave_care_client/models/resource.dart';
@@ -9,6 +10,7 @@ import 'package:palliatave_care_client/pages/chat_list_screen.dart';
 import 'package:palliatave_care_client/pages/login_page.dart';
 import 'package:palliatave_care_client/pages/main_screen.dart';
 import 'package:palliatave_care_client/pages/my_posts_page.dart';
+import 'package:palliatave_care_client/pages/send_notification_page.dart';
 import 'package:palliatave_care_client/pages/subbed_topics_page.dart';
 import 'package:palliatave_care_client/pages/topic_search_results_page.dart';
 import 'package:palliatave_care_client/services/api_service.dart';
@@ -18,11 +20,10 @@ import 'package:palliatave_care_client/widgets/post_card.dart';
 import 'package:palliatave_care_client/models/post_summary_page_response.dart';
 import 'package:palliatave_care_client/widgets/resource_card.dart';
 import 'package:palliatave_care_client/pages/create_post_page.dart';
-// import 'package:url_launcher/url_launcher.dart';
 import 'package:palliatave_care_client/widgets/app_sidebar.dart';
-
-// ✅ NEW: import the PostDetailPage
+import 'package:palliatave_care_client/pages/edit_topic_page.dart';
 import 'package:palliatave_care_client/pages/post_details_page.dart';
+import 'package:palliatave_care_client/util/app_navigator.dart';
 
 class TopicDetailPage extends StatefulWidget {
   final Topic topic;
@@ -39,7 +40,6 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
   String _currentUserName = 'Loading User...';
   String _currentUserRole = 'Loading Role...'; // New state for user role
 
-  // ✅ NEW: keep the current user's id so PostDetailPage can do author checks
   String _currentUserId = '';
 
   bool _isSubscribed = false;
@@ -213,6 +213,57 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
     );
   }
 
+  Future<void> _handleUpdate() async {
+  // Navigate to the new EditTopicPage and wait for a result
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => EditTopicPage(topic: widget.topic),
+    ),
+  );
+
+  // If the edit page returns `true`, it means the topic was updated, so we refresh.
+  if (result == true) {
+    // You will need to implement a refresh method, or simply pop
+    // For now, we just pop to the previous screen
+    Navigator.pop(context, true); // Pop and signal a refresh
+  }
+}
+
+Future<void> _handleDelete() async {
+  final bool? confirm = await showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(tr(context, 'confirm_deletion_title')),
+      content: Text(tr(context, 'confirm_deletion_body')),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr(context, 'cancel'))),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text(tr(context, 'delete'), style: const TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
+
+  // ✅ THIS PART WAS MISSING
+  if (confirm != true) return; // Exit if the user cancelled
+
+  // Show a loading indicator
+  // You might want to add a state variable like `_isDeleting` to show a spinner
+
+  final ApiResponse<String> response = await _apiService.deleteTopic(widget.topic.id);
+
+  if (!mounted) return;
+
+  if (response.status == HttpStatus.OK.name) {
+    await _showInfoDialog(context, response.message, title: tr(context, 'success_title'));
+    Navigator.pop(context, true); // Pop the page and signal to the previous page to refresh
+  } else {
+    await _showInfoDialog(context, response.message, title: tr(context, 'deletion_failed_title'), isError: true);
+  }
+}
+
   @override
 Widget build(BuildContext context) {
   return SidebarScaffold(
@@ -230,7 +281,7 @@ Widget build(BuildContext context) {
           MaterialPageRoute(builder: (context) => const MyPostsPage()),
         );
       },
-      // onOpenAddPostQA: _currentUserRole == 'PATIENT' ? () {} : null,
+        onOpenQARequests: () => AppNavigator.navigateToQATopic(context, _currentUserRole),
     
       onOpenChat: (_currentUserRole == 'DOCTOR' || _currentUserRole == 'PATIENT') ? () {
           Navigator.push(
@@ -253,8 +304,9 @@ Widget build(BuildContext context) {
           ),
         );
       },
-      // optionally show bullets:
-      // subscribedTopics: const ['Pain Management', 'Mindfulness & Meditation'],
+      onOpenSendNotification: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const SendNotificationPage()));
+      },
     ),
     content: _buildForYouContent(context),
   );
@@ -270,10 +322,24 @@ Widget _buildForYouContent(BuildContext context) {
                   pinned: true,
                   toolbarHeight: 180,
                   backgroundColor: Colors.white,
-                  automaticallyImplyLeading: false,
+                  automaticallyImplyLeading: true,
+                     actions: [
+                      if (widget.userRole == 'DOCTOR' && widget.topic.createdBy == _currentUserId) ...[
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          tooltip: tr(context, 'edit_topic_tooltip'),
+                          onPressed: _handleUpdate,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.redAccent),
+                          tooltip: tr(context, 'delete_topic_tooltip'),
+                          onPressed: _handleDelete,
+                        ),
+                      ],
+                    ],
                   flexibleSpace: FlexibleSpaceBar(
                     background: Padding(
-                      padding: const EdgeInsets.all(20.0),
+                      padding: const EdgeInsets.fromLTRB(70.0, 20.0, 90.0, 20.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -304,12 +370,6 @@ Widget _buildForYouContent(BuildContext context) {
                                 ),
                               ),
                               const SizedBox(width: 20),
-                              SizedBox(
-                                height: 40,
-                                child: _isSubscribed
-                                    ? ElevatedButton.icon(onPressed: _handleUnsubscribe, icon: const Icon(Icons.favorite_border, size: 18), label: const Text('Unsubscribe'), style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16), textStyle: const TextStyle(fontSize: 14)))
-                                    : ElevatedButton.icon(onPressed: _handleSubscribe, icon: const Icon(Icons.favorite, size: 18), label: const Text('Subscribe'), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16), textStyle: const TextStyle(fontSize: 14))),
-                              ),
                             ],
                           ),
                         ],
@@ -323,6 +383,12 @@ Widget _buildForYouContent(BuildContext context) {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                         SizedBox(
+                                height: 40,
+                                child: _isSubscribed
+                                    ? ElevatedButton.icon(onPressed: _handleUnsubscribe, icon: const Icon(Icons.favorite_border, size: 18), label: const Text('Unsubscribe'), style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16), textStyle: const TextStyle(fontSize: 14)))
+                                    : ElevatedButton.icon(onPressed: _handleSubscribe, icon: const Icon(Icons.favorite, size: 18), label: const Text('Subscribe'), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16), textStyle: const TextStyle(fontSize: 14))),
+                              ),
                         if (widget.topic.resources.isNotEmpty) ...[
                           const Text('Topic Resources', style: TextStyle(fontSize: 22.0, fontWeight: FontWeight.bold, color: Colors.black87)),
                           const SizedBox(height: 15.0),

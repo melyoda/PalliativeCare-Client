@@ -34,6 +34,7 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+      // print('PostCard is trying to load image URL: $imageUrl');
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 20.0), // Added horizontal margin
       elevation: 2,
@@ -116,9 +117,9 @@ class PostCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text('$commentCount', style: TextStyle(color: Colors.grey[600])),
                   const Spacer(),
-                  Icon(Icons.access_time, size: 18, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text('$readTimeMinutes min read', style: TextStyle(color: Colors.grey[600])),
+                  // Icon(Icons.access_time, size: 18, color: Colors.grey[600]),
+                  // const SizedBox(width: 4),
+                  // Text('$readTimeMinutes min read', style: TextStyle(color: Colors.grey[600])),
                 ],
               ),
             ],

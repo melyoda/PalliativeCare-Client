@@ -144,6 +144,7 @@ class _MyPostsPageState extends State<MyPostsPage> {
                   builder: (context) => CreatePostPage(
                     topicId: '68d4f9689432a68dd3b44d95', 
                     topicName: tr(context, 'qa_topic_title'),
+                     isQA: true,
                   ),
                 ),
               ).then((postWasCreated) {

@@ -14,11 +14,13 @@ import 'package:palliatave_care_client/widgets/info_dialog.dart';
 class CreatePostPage extends StatefulWidget {
   final String topicId;   // which topic are we posting into?
   final String topicName; // optional: just for the header
+  final bool isQA;
 
   const CreatePostPage({
     super.key,
     required this.topicId,
     required this.topicName,
+    this.isQA = false, 
   });
 
   @override
@@ -57,8 +59,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
       resources: _pickedResources,
     );
 
-    final ApiResponse<Post> resp =
-        await _api.createDoctorPost(widget.topicId, dto);
+      ApiResponse<Post> resp;
+
+      if (widget.isQA) {
+        // If it's a Q&A post, call the patient-specific function
+        resp = await _api.createPatientQuestion(dto);
+      } else {
+        // Otherwise, call the original doctor-specific function
+        resp = await _api.createDoctorPost(widget.topicId, dto);
+      }
+    // final ApiResponse<Post> resp =
+    //     await _api.createDoctorPost(widget.topicId, dto);
 
     setState(() => _submitting = false);
 

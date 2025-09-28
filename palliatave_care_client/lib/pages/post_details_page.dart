@@ -7,6 +7,7 @@ import 'package:palliatave_care_client/models/enriched_post.dart';
 import 'package:palliatave_care_client/models/comment_dto.dart';
 import 'package:palliatave_care_client/pages/chat_list_screen.dart';
 import 'package:palliatave_care_client/pages/my_posts_page.dart';
+import 'package:palliatave_care_client/pages/send_notification_page.dart';
 import 'package:palliatave_care_client/pages/topic_search_results_page.dart';
 import 'package:palliatave_care_client/services/api_service.dart';
 import 'package:palliatave_care_client/util/http_status.dart';
@@ -23,6 +24,7 @@ import 'package:palliatave_care_client/pages/login_page.dart';
 import 'package:palliatave_care_client/pages/main_screen.dart'; 
 import 'package:palliatave_care_client/pages/all_topics_page.dart';
 import 'package:palliatave_care_client/pages/subbed_topics_page.dart';
+import 'package:palliatave_care_client/util/app_navigator.dart';
 
 class PostDetailPage extends StatefulWidget {
   final String postId;
@@ -205,6 +207,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
             MaterialPageRoute(builder: (context) => const MyPostsPage()),
           );
       },
+       onOpenQARequests: () => AppNavigator.navigateToQATopic(context, _currentUserRole),
         onOpenSubscribedTopics: () {
           Navigator.push(
             context,
@@ -235,6 +238,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
             ),
           );
         },
+        onOpenSendNotification: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const SendNotificationPage()));
+      },
       ),
       content: _buildContent(),
     );
@@ -277,11 +283,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                   ),
                                   const Spacer(),
                                   if (isAuthor) ...[
-                                    IconButton(
-                                      icon: const Icon(Icons.edit, color: Colors.blueGrey),
-                                      onPressed: _handleUpdatePost,
-                                      tooltip: tr(context, 'edit_post_tooltip'), // <-- Changed
-                                    ),
+                                    // IconButton(
+                                    //   icon: const Icon(Icons.edit, color: Colors.blueGrey),
+                                    //   onPressed: _handleUpdatePost,
+                                    //   tooltip: tr(context, 'edit_post_tooltip'), // <-- Changed
+                                    // ),
                                     IconButton(
                                       icon: const Icon(Icons.delete, color: Colors.redAccent),
                                       onPressed: _handleDeletePost,

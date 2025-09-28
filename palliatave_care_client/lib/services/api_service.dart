@@ -15,6 +15,8 @@ import 'package:palliatave_care_client/models/post_summary_page_response.dart';
 import 'package:palliatave_care_client/models/post_dto.dart'; // Assuming you have a PostDTO model
 import 'package:palliatave_care_client/models/comment_dto.dart'; // Assuming you have a CommentDTO model
 import 'package:palliatave_care_client/models/chat_models.dart';
+import 'package:palliatave_care_client/models/notification_model.dart'; 
+
 
 class ApiService {
   // Define the base URL for your backend server.
@@ -26,8 +28,8 @@ class ApiService {
 
   // Endpoint specific paths
   static const String _authPath = "/api/auth";
-  static const String _postsPath = "/api/posts"; // Adjusted to match your backend PostController
-  static const String _topicsPath = "/api/topics"; // Example for future use
+  static const String _postsPath = "/api/posts"; 
+  static const String _topicsPath = "/api/topics";
 
   // Secure storage instance
   final _secureStorage = const FlutterSecureStorage();
@@ -694,8 +696,82 @@ class ApiService {
       );
     }
   }
+    Future<ApiResponse<String>> updateTopic({
+    required String topicId,
+    required String title,
+    required String description,
+    File? logo,
+  }) async {
+    // This path matches your @PutMapping("/update/{id}")
+    final url = Uri.parse('$_baseUrl$_topicsPath/update/$topicId');
+    try {
+      final String? token = await getToken();
+      if (token == null) {
+        return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name.toString(),
+           message: "Not logged in."
+          );
+      }
 
-// ✅ NEW: Method to search for topics by keyword
+      var request = http.MultipartRequest('PUT', url)
+        ..headers['Authorization'] = 'Bearer $token'
+        ..fields['title'] = title
+        ..fields['description'] = description;
+
+      if (logo != null) {
+        request.files.add(await http.MultipartFile.fromPath('logo', logo.path));
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final decodedResponse = json.decode(response.body);
+      
+      if (response.statusCode != 200) {
+      print('UPDATE FAILED - Status: ${response.statusCode}, Body: ${response.body}');
+    }
+
+      return ApiResponse.fromJson(decodedResponse, (json) => json.toString());
+    } catch (e) {
+      print('EXCEPTION during topic update: $e');
+      return ApiResponse(
+        status:HttpStatus.INTERNAL_SERVER_ERROR.name.toString(),
+        message: "Failed to update topic: $e",
+        );
+    }
+  }
+
+  Future<ApiResponse<String>> deleteTopic(String topicId) async {
+    // This path matches your @DeleteMapping("/delete/{id}")
+    final url = Uri.parse('$_baseUrl$_topicsPath/delete/$topicId');
+    try {
+      final String? token = await getToken();
+      if (token == null) {
+          return ApiResponse(
+            status: HttpStatus.UNAUTHORIZED.name.toString(),
+            message: "Not logged in."
+          );
+      }
+
+      final response = await http.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+    if (response.statusCode != 200) {
+      print('DELETE FAILED - Status: ${response.statusCode}, Body: ${response.body}');
+    }
+
+      final decodedResponse = json.decode(response.body);
+      return ApiResponse.fromJson(decodedResponse, (json) => json.toString());
+    } catch (e) {
+      print('EXCEPTION during topic delete: $e');
+        return ApiResponse(
+          status:HttpStatus.INTERNAL_SERVER_ERROR.name.toString(),
+          message: "Failed to delete topic: $e",
+        );
+    }
+  }
+
   Future<ApiResponse<List<Topic>>> searchTopics(String keyword) async {
     // URL encode the keyword to handle spaces and special characters
     final encodedKeyword = Uri.encodeComponent(keyword);
@@ -845,7 +921,6 @@ static Future<void> warmUpServer() async {
   }
 
    Future<ApiResponse<List<PostSummary>>> getMyPosts() async {
-    // This endpoint matches the one you created in your Spring Boot PostController
     final url = Uri.parse('$_baseUrl$_postsPath/my-posts');
     try {
       final String? token = await getToken();
@@ -864,7 +939,7 @@ static Future<void> warmUpServer() async {
         },
       );
 
-        print('Raw Response from /my-posts: ${response.body}');
+        // print('Raw Response from /my-posts: ${response.body}');
 
       if (response.body.isEmpty) {
         return ApiResponse(
@@ -899,6 +974,202 @@ static Future<void> warmUpServer() async {
         status: HttpStatus.INTERNAL_SERVER_ERROR.name,
         message: "Failed to connect to the server: $e",
       );
+    }
+  }
+
+    // --- Notifications ---
+
+  // Fetches all notifications for the current user
+  Future<ApiResponse<List<NotificationModel>>> getUserNotifications() async {
+    final url = Uri.parse('$_baseUrl/api/notifications'); // Matches GET /api/notifications
+    try {
+      final String? token = await getToken();
+      if (token == null){
+         return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name,
+          message: "No authentication token found. Please log in.",
+        );
+      }
+
+      final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+      final decodedResponse = json.decode(response.body);
+
+      if (decodedResponse['status'] == 'OK' && decodedResponse['data'] != null) {
+        final List<dynamic> jsonList = decodedResponse['data'];
+        final List<NotificationModel> notifications = jsonList.map((n) => NotificationModel.fromJson(n)).toList();
+        return ApiResponse(
+            status: HttpStatus.OK.name,
+            message: "Notifications fetched.",
+            data: notifications
+          );
+      } else {
+        return ApiResponse(
+          status: decodedResponse['status'],
+          message: decodedResponse['message']);
+      }
+    } catch (e) {
+      return ApiResponse(
+        status: HttpStatus.INTERNAL_SERVER_ERROR.name,
+        message: "Failed to get notifications: $e");
+    }
+  }
+
+  // Fetches the count of unread notifications
+  Future<ApiResponse<int>> getUnreadCount() async {
+    final url = Uri.parse('$_baseUrl/api/notifications/unread-count'); // Matches GET /api/notifications/unread-count
+    try {
+      final String? token = await getToken();
+      if (token == null){
+         return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name,
+          message: "No authentication token found. Please log in.",
+        );
+      }
+      final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+      final decodedResponse = json.decode(response.body);
+
+      if (decodedResponse['status'] == 'OK' && decodedResponse['data'] != null) {
+        // The data is a simple number (long in Java -> int in Dart)
+        return ApiResponse(
+            status: HttpStatus.OK.name,
+            message: "Count fetched.",
+            data:  decodedResponse['data'] as int
+          );
+      } else {
+        return ApiResponse(
+            status: decodedResponse['status'],
+            message: decodedResponse['message']
+          );
+      }
+    } catch (e) {
+      return ApiResponse(
+          status: HttpStatus.INTERNAL_SERVER_ERROR.name,
+          message: "Failed to get unread count: $e"
+        );
+    }
+  }
+
+  // Marks a single notification as read
+  Future<ApiResponse<NotificationModel>> markNotificationAsRead(String notificationId) async {
+    final url = Uri.parse('$_baseUrl/api/notifications/$notificationId/read'); // Matches PATCH /api/notifications/{id}/read
+    try {
+      final String? token = await getToken();
+      if (token == null){
+         return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name,
+          message: "No authentication token found. Please log in.",
+        );
+      }
+      final response = await http.patch(url, headers: {'Authorization': 'Bearer $token'});
+      final decodedResponse = json.decode(response.body);
+
+      if (decodedResponse['status'] == 'OK' && decodedResponse['data'] != null) {
+        final notification = NotificationModel.fromJson(decodedResponse['data']);
+        return ApiResponse(
+            status: HttpStatus.OK.name,
+            message: "Notification marked as read.",
+            data: notification
+          );
+      } else {
+        return ApiResponse(
+            status: decodedResponse['status'],
+            message: decodedResponse['message']
+          );
+      }
+    } catch (e) {
+      return ApiResponse(
+          status: HttpStatus.INTERNAL_SERVER_ERROR.name,
+          message: "Failed to mark notification as read: $e"
+        );
+    }
+  }
+
+Future<ApiResponse<String>> markAllNotificationsAsRead() async {
+  final url = Uri.parse('$_baseUrl/api/notifications/read-all');
+  try {
+    final String? token = await getToken();
+    if (token == null){
+        return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name,
+          message:"Not logged in."
+        );
+    }
+
+    final response = await http.post(url, headers: {'Authorization': 'Bearer $token'});
+    final decodedResponse = json.decode(response.body);
+    
+    return ApiResponse.fromJson(decodedResponse, (json) => json.toString());
+  } catch (e) {
+    return ApiResponse(
+        status: HttpStatus.INTERNAL_SERVER_ERROR.name,
+        message: "Failed to mark all as read: $e"
+      );
+  }
+}
+
+ // Calls the POST /api/notifications/broadcast endpoint
+  Future<ApiResponse<String>> sendBroadcastNotification({
+    required String title,
+    required String message,
+  }) async {
+    final url = Uri.parse('$_baseUrl/api/notifications/broadcast');
+    try {
+      final String? token = await getToken();
+      if (token == null){ 
+        return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name,
+          message: "Not logged in."
+        );
+      }
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'title': title, 'message': message}),
+      );
+      final decodedResponse = json.decode(response.body);
+      return ApiResponse.fromJson(decodedResponse, (json) => json.toString());
+    } catch (e) {
+      return ApiResponse(
+          status: HttpStatus.INTERNAL_SERVER_ERROR.name,
+          message:  "Failed to send notification: $e"
+        );
+    }
+  }
+
+  // Calls the POST /api/notifications/topic/{topicId} endpoint
+  Future<ApiResponse<String>> sendTopicNotification({
+    required String topicId,
+    required String title,
+    required String message,
+  }) async {
+    final url = Uri.parse('$_baseUrl/api/notifications/topic/$topicId');
+    try {
+      final String? token = await getToken();
+      if (token == null){
+        return ApiResponse(
+          status: HttpStatus.UNAUTHORIZED.name,
+          message:  "Not logged in."
+        );
+      }
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'title': title, 'message': message}),
+      );
+      final decodedResponse = json.decode(response.body);
+      return ApiResponse.fromJson(decodedResponse, (json) => json.toString());
+    } catch (e) {
+      return ApiResponse(
+          status: HttpStatus.INTERNAL_SERVER_ERROR.name,
+          message: "Failed to send notification: $e"
+        );
     }
   }
 

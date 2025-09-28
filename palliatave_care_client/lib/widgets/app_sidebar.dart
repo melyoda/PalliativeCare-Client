@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:palliatave_care_client/l10n.dart';
 
-enum SidebarSection { forYou, allTopics, myPosts, addPostQA, chat, qaRequests } // Added qaRequests
+import 'package:provider/provider.dart';
+import 'package:badges/badges.dart' as badges;
+import 'package:palliatave_care_client/pages/notifications_page.dart';
+import 'package:palliatave_care_client/services/notification_service.dart';
+
+enum SidebarSection { forYou, allTopics, myPosts, addPostQA, chat, qaRequests, sendNotification  }
 
 class AppSidebar extends StatefulWidget  {
   final String currentUserName;
@@ -21,6 +26,7 @@ class AppSidebar extends StatefulWidget  {
   // Optional: search + topics list
   final ValueChanged<String>? onSearchSubmitted;
   final List<String> subscribedTopics; // NEW: bullets under the heading
+  final VoidCallback? onOpenSendNotification;
 
   const AppSidebar({
     super.key,
@@ -37,6 +43,7 @@ class AppSidebar extends StatefulWidget  {
     this.onSearchSubmitted,
     this.subscribedTopics = const [],
     this.onOpenQARequests,
+    this.onOpenSendNotification,
   });
 
   @override
@@ -44,10 +51,8 @@ class AppSidebar extends StatefulWidget  {
 }
 
   class _AppSidebarState extends State<AppSidebar> {
-    // ✅ 2. Add a TextEditingController
     final _searchController = TextEditingController();
 
-    // ✅ 3. Add the dispose method to prevent memory leaks
     @override
     void dispose() {
       _searchController.dispose();
@@ -79,13 +84,35 @@ class AppSidebar extends StatefulWidget  {
                       Icon(Icons.favorite_border,
                           color: Theme.of(context).primaryColor, size: 30.0),
                       const SizedBox(width: 8.0),
-                      Text(
-                        tr(context, 'app_title'),
-                        style: TextStyle(
-                          fontSize: 24.0,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
-                        ),
+                      Expanded(
+                        child: Text(
+                          tr(context, 'app_title'),
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        )
+                      ),
+                      
+                      const Spacer(), // This pushes the icon to the far right
+                      Consumer<NotificationService>(
+                        builder: (context, notificationService, child) {
+                          return badges.Badge(
+                            position: badges.BadgePosition.topEnd(top: 0, end: 3),
+                            badgeContent: Text(
+                              notificationService.unreadCount.toString(),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            showBadge: notificationService.unreadCount > 0,
+                            child: IconButton(
+                              icon: const Icon(Icons.notifications_outlined),
+                              onPressed: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsPage()));
+                              },
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -130,7 +157,13 @@ class AppSidebar extends StatefulWidget  {
                       isSelected: widget.selected == SidebarSection.myPosts,
                       onTap: widget.onOpenMyPosts,
                   ),
-
+                   if (widget.userRole == 'DOCTOR' && widget.onOpenSendNotification != null)
+                    _SidebarNavItem(
+                      icon: Icons.campaign_outlined,
+                      title: tr(context, 'send_notification'),
+                      isSelected: widget.selected == SidebarSection.sendNotification,
+                      onTap: widget.onOpenSendNotification!,
+                    ),
                    if (widget.userRole == 'DOCTOR' && widget.onOpenQARequests != null)
                     _SidebarNavItem(
                       icon: Icons.question_answer_outlined,

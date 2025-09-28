@@ -7,11 +7,18 @@ import 'services/api_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:palliatave_care_client/l10n.dart'; 
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:provider/provider.dart';
+import 'package:palliatave_care_client/services/notification_service.dart';
 
 void main() {
   ApiService.warmUpServer();
-  runApp(const MyApp());
+  // runApp(const MyApp());
+   runApp(
+    ChangeNotifierProvider(
+      create: (context) => NotificationService(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
